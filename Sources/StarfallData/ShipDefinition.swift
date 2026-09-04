@@ -1,0 +1,297 @@
+/// Represents a faction in the game.
+public enum Faction: String, Codable, CaseIterable, Sendable {
+    /// The Kaelen Compact - alliance of free species.
+    case compact = "compact"
+
+    /// The Vexari Dominion - expansionist empire.
+    case dominion = "dominion"
+}
+
+/// Weapon type used by ships.
+public enum WeaponType: String, Codable, CaseIterable, Sendable {
+    case projectile
+    case laser
+    case missile
+    case cone
+    case tracking
+    case spread
+    case contact
+}
+
+/// Defines the primary weapon for a ship.
+public struct ShipWeapon: Codable, Sendable, Hashable {
+    /// Name of the weapon.
+    public let name: String
+
+    /// Type of weapon.
+    public let type: WeaponType
+
+    /// Damage per hit (before shield/armor modifiers).
+    public let damage: Int
+
+    /// Energy cost to fire.
+    public let energyCost: Int
+
+    /// Minimum frames between shots.
+    public let fireWait: Int
+
+    /// Whether the weapon tracks the target.
+    public let isTracking: Bool
+
+    /// Projectile speed in world units per frame (0 for instant-hit weapons).
+    public let projectileSpeed: Double
+
+    /// Heat generated per shot. Added to ship heat on fire; 0 means no heat.
+    public let heatPerShot: Int
+
+    public init(
+        name: String,
+        type: WeaponType,
+        damage: Int,
+        energyCost: Int,
+        fireWait: Int,
+        isTracking: Bool = false,
+        projectileSpeed: Double = 8,
+        heatPerShot: Int = 0
+    ) {
+        self.name = name
+        self.type = type
+        self.damage = damage
+        self.energyCost = energyCost
+        self.fireWait = fireWait
+        self.isTracking = isTracking
+        self.projectileSpeed = projectileSpeed
+        self.heatPerShot = heatPerShot
+    }
+}
+
+/// Defines the special ability for a ship.
+public struct ShipSpecial: Codable, Sendable, Hashable {
+    /// Name of the special ability.
+    public let name: String
+
+    /// Type of special ability, determining its behavior.
+    public let type: SpecialType
+
+    /// Energy cost to use.
+    public let energyCost: Int
+
+    /// Minimum frames between uses.
+    public let useWait: Int
+
+    public init(name: String, type: SpecialType, energyCost: Int, useWait: Int) {
+        self.name = name
+        self.type = type
+        self.energyCost = energyCost
+        self.useWait = useWait
+    }
+}
+
+/// Categories of special abilities, each with distinct behavior in melee.
+public enum SpecialType: String, Codable, Sendable, Hashable {
+    case none
+    case shield
+    case cloak
+    case specialForm
+    case teleport
+    case kamikaze
+    case launchFighters
+    case regrowCrew
+    case rearWeapon
+    case pointDefense
+    case parasiteMine
+    case retroPulse
+    case crystalSwarm
+    case morphShift
+    case sirenCall
+}
+
+/// Visual ship shape for rendering. Each ship has a distinct silhouette
+/// inspired by the original SC2 sprites, drawn as CGPath points relative
+/// to the ship center (0,0), pointing up (+Y is forward).
+public enum ShipShape: String, Codable, Sendable, Hashable {
+    case broodstone
+    case striker
+    case shifter
+    case dart
+    case veil
+    case runner
+    case spark
+    case dreadCommand
+    case sporepod
+    case kesharunner
+    case warden
+    case harasser
+    case reaver
+    case skirmisher
+
+    /// Species-specific accent color used for cockpit lights, detail lines,
+    /// and engine glow in the renderer. Defined as RGB values for consistency.
+    public var accentColor: (red: Double, green: Double, blue: Double) {
+        switch self {
+        // -- Compact --
+        case .broodstone:
+            return (0.3, 0.7, 0.9)  // Crystalline cyan
+        case .striker:
+            return (0.8, 0.8, 0.2)  // Golden warrior
+        case .shifter:
+            return (0.2, 0.8, 0.5)  // Organic teal
+        case .dart:
+            return (1.0, 0.5, 0.8)  // Playful magenta
+        case .veil:
+            return (0.7, 0.4, 0.9)  // Mystical purple
+        case .runner:
+            return (0.9, 0.6, 0.2)  // Earthy amber
+        case .spark:
+            return (1.0, 0.4, 0.1)  // Fox orange
+
+        // -- Dominion --
+        case .dreadCommand:
+            return (0.9, 0.2, 0.2)  // Menacing red
+        case .sporepod:
+            return (0.5, 0.8, 0.3)  // Fungal green
+        case .kesharunner:
+            return (0.8, 0.7, 0.4)  // Nervous yellow
+        case .warden:
+            return (0.9, 0.85, 0.9) // Androsynth pearl
+        case .harasser:
+            return (0.6, 0.6, 0.6)  // Gray armor
+        case .reaver:
+            return (0.8, 0.1, 0.1)  // Violent crimson
+        case .skirmisher:
+            return (0.7, 0.9, 0.3)  // Bird-like chartreuse
+        }
+    }
+}
+
+/// Complete ship definition. Adding a new ship requires only a data entry
+/// and its SVG assets -- no switch statements to edit.
+public struct ShipDefinition: Codable, Sendable, Hashable {
+    /// Ship class name (display name).
+    public let name: String
+
+    /// Species name.
+    public let species: String
+
+    /// Faction this ship belongs to.
+    public let faction: Faction
+
+    /// Strategic cost in game currency (Starbucks).
+    public let cost: Int
+
+    /// Maximum crew (also maximum hit points).
+    public let maxCrew: Int
+
+    /// Starting crew at match beginning.
+    public let startingCrew: Int
+
+    /// Maximum energy capacity.
+    public let maxEnergy: Int
+
+    /// Starting energy at match beginning.
+    public let startingEnergy: Int
+
+    /// Energy gained per recharge tick.
+    public let energyRegen: Int
+
+    /// Frames between energy recharge ticks.
+    public let energyWait: Int
+
+    /// Maximum thrust speed in world units per frame.
+    public let maxThrust: Double
+
+    /// Amount thrust increases per thrust increment.
+    public let thrustIncrement: Double
+
+    /// Frames between thrust increments while accelerating.
+    public let thrustWait: Int
+
+    /// Frames between facing changes when turning.
+    public let turnWait: Int
+
+    /// Ship mass (affects how thrust and gravity affect acceleration).
+    public let mass: Double
+
+    /// Primary weapon.
+    public let primaryWeapon: ShipWeapon
+
+    /// Special ability.
+    public let specialAbility: ShipSpecial
+
+    /// Visual shape for rendering.
+    public let shape: ShipShape
+
+    // MARK: - Layered HP
+
+    /// Maximum shield pool. 0 means no shields.
+    public let shieldMax: Int
+
+    /// Shield regenerated per frame when not suppressed.
+    public let shieldRegenRate: Int
+
+    /// Frames shield regen is paused after taking damage.
+    public let shieldRegenDelay: Int
+
+    /// Fraction of hull damage blocked by armor (0.0..0.8).
+    public let armorReduction: Double
+
+    // MARK: - Heat
+
+    /// Maximum heat before weapon overheat.
+    public let heatCapacity: Int
+
+    /// Heat dissipated per frame.
+    public let heatDissipation: Int
+
+    public init(
+        name: String,
+        species: String,
+        faction: Faction,
+        cost: Int,
+        maxCrew: Int,
+        startingCrew: Int,
+        maxEnergy: Int,
+        startingEnergy: Int,
+        energyRegen: Int,
+        energyWait: Int,
+        maxThrust: Double,
+        thrustIncrement: Double,
+        thrustWait: Int,
+        turnWait: Int,
+        mass: Double,
+        primaryWeapon: ShipWeapon,
+        specialAbility: ShipSpecial,
+        shape: ShipShape = .dart,
+        shieldMax: Int = 0,
+        shieldRegenRate: Int = 0,
+        shieldRegenDelay: Int = 60,
+        armorReduction: Double = 0.0,
+        heatCapacity: Int = 100,
+        heatDissipation: Int = 2
+    ) {
+        self.name = name
+        self.species = species
+        self.faction = faction
+        self.cost = cost
+        self.maxCrew = maxCrew
+        self.startingCrew = startingCrew
+        self.maxEnergy = maxEnergy
+        self.startingEnergy = startingEnergy
+        self.energyRegen = energyRegen
+        self.energyWait = energyWait
+        self.maxThrust = maxThrust
+        self.thrustIncrement = thrustIncrement
+        self.thrustWait = thrustWait
+        self.turnWait = turnWait
+        self.mass = mass
+        self.primaryWeapon = primaryWeapon
+        self.specialAbility = specialAbility
+        self.shape = shape
+        self.shieldMax = shieldMax
+        self.shieldRegenRate = shieldRegenRate
+        self.shieldRegenDelay = shieldRegenDelay
+        self.armorReduction = armorReduction
+        self.heatCapacity = heatCapacity
+        self.heatDissipation = heatDissipation
+    }
+}

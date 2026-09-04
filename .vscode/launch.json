@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:starfall}",
+            "name": "Debug StarfallApp",
+            "target": "StarfallApp",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug StarfallApp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:starfall}",
+            "name": "Release StarfallApp",
+            "target": "StarfallApp",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release StarfallApp"
+        }
+    ]
+}
