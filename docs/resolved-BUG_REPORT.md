@@ -1,5 +1,20 @@
 # CampaignScene — Comprehensive Bug Report
 
+> ## ✅ RESOLVED (verified 2026-09-04)
+> All six bugs below have been fixed and verified against the current source tree.
+> This file is retained as a record of the investigation and root-cause analysis.
+>
+> | Bug | Fix location | Status |
+> |-----|--------------|--------|
+> | BUG-1 | `GameController.swift:735` — `showCampaignScene` now calls `presentSceneWithFade(scene, scaleMode: .resizeFill)` | Fixed |
+> | BUG-2 | `CampaignScene.swift` `pointInEndTurnButton` — hit rect now derived from `btnCX`/`btnCY` matching the visual button | Fixed |
+> | BUG-3 | `CampaignScene.swift:647` `update()` — no longer calls `renderMap()` each frame; only `updateHUD()` | Fixed |
+> | BUG-4 | `CampaignSimulation.swift` `executeAITurn` — `actionsLeft -= 1` now only on `execute() == nil` success | Fixed |
+> | BUG-5 | `computeOrigin()` removed from `CampaignScene.swift` | Removed |
+> | BUG-6 | `CampaignSimulation.swift:669` `checkVictory` — clean `findStarbaseSystem == nil && no live fleets` condition | Fixed |
+>
+> Build: clean, 0 warnings. Tests: 112/112 pass.
+
 ## Executive Summary
 
 Three classes of bugs were identified:
