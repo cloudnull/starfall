@@ -1,0 +1,9 @@
+<!-- Veil (Sireth) - Sleek, curved with fin-like extensions -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -28 48 56" width="192" height="224">
+  <polygon points="0,-24 -4,-8 -14,-6 -16,0 -12,12 0,20 4,10 14,-4 16,0 14,-8 -4,-8"
+    fill="#b058e0" fill-opacity="0.85"
+    stroke="#c870f0" stroke-width="1.5"/>
+  <line x1="-10" y1="0" x2="10" y2="0" stroke="#d8a0ff" stroke-width="1" stroke-opacity="0.4"/>
+  <line x1="-12" y1="4" x2="12" y2="4" stroke="#d8a0ff" stroke-width="0.8" stroke-opacity="0.3"/>
+  <circle cx="0" cy="-6" r="2" fill="#ffda79" fill-opacity="0.9"/>
+</svg>

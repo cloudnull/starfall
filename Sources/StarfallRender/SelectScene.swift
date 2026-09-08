@@ -63,8 +63,6 @@ public final class SelectScene: SKScene {
     private let p1HeaderLabel = SKLabelNode()
     private let p2HeaderLabel = SKLabelNode()
 
-    /// Which player is selecting next: 1 = Compact, 2 = Dominion.
-    private var selectingPlayer: Int = 1
     
     /// Ships already picked.
     private var pickedShip1: ShipDefinition?
@@ -116,33 +114,36 @@ public final class SelectScene: SKScene {
         subtitle.position = CGPoint(x: size.width / 2, y: size.height - 80)
         labelLayer.addChild(subtitle)
 
-        // Faction headers.
+        // Faction headers — centered over each column.
+        let leftColX = size.width * 0.35
+        let rightColX = size.width * 0.65
+
         p1HeaderLabel.fontName = "Helvetica Neue"
         p1HeaderLabel.fontSize = 16
         p1HeaderLabel.fontColor = NSColor.systemGreen
         p1HeaderLabel.text = "KAELAN COMPACT (You)"
-        p1HeaderLabel.position = CGPoint(x: size.width * 0.25, y: size.height - 110)
+        p1HeaderLabel.position = CGPoint(x: leftColX, y: size.height - 110)
         labelLayer.addChild(p1HeaderLabel)
 
         p2HeaderLabel.fontName = "Helvetica Neue"
         p2HeaderLabel.fontSize = 16
         p2HeaderLabel.fontColor = NSColor.systemRed
         p2HeaderLabel.text = "VEXARI DOMINION (AI)"
-        p2HeaderLabel.position = CGPoint(x: size.width * 0.75, y: size.height - 110)
+        p2HeaderLabel.position = CGPoint(x: rightColX, y: size.height - 110)
         labelLayer.addChild(p2HeaderLabel)
 
-        // Ship buttons — start below headers with 40px gap.
+        // Ship buttons — start below headers.
         let startY: CGFloat = CGFloat(size.height) - 150
-        let buttonW: CGFloat = 150
-        let buttonH: CGFloat = 36
-        let spacing: CGFloat = 8
+        let buttonW: CGFloat = 160
+        let buttonH: CGFloat = 38
+        let spacing: CGFloat = 6
 
         // Compact ships (left column).
         for (i, ship) in compactShips.enumerated() {
             let btn = createShipButton(
                 ship: ship,
                 faction: .compact,
-                x: size.width * 0.25 - buttonW / 2,
+                x: leftColX - buttonW / 2,
                 y: startY - CGFloat(i) * (buttonH + spacing),
                 width: buttonW,
                 height: buttonH
@@ -155,7 +156,7 @@ public final class SelectScene: SKScene {
             let btn = createShipButton(
                 ship: ship,
                 faction: .dominion,
-                x: size.width * 0.75 - buttonW / 2,
+                x: rightColX - buttonW / 2,
                 y: startY - CGFloat(i) * (buttonH + spacing),
                 width: buttonW,
                 height: buttonH
@@ -203,7 +204,9 @@ public final class SelectScene: SKScene {
 
         let btn = SKSpriteNode(color: bgColor, size: CGSize(width: width, height: height))
         btn.position = CGPoint(x: x + width / 2, y: y + height / 2)
-        btn.name = "ship_\(ship.name)"
+        // Namespace by faction: ship names can repeat across factions (e.g. "Runner"),
+        // so the name alone is not a unique key.
+        btn.name = "ship_\(faction.rawValue)_\(ship.name)"
 
         let border = SKShapeNode(rect: CGRect(x: -width / 2, y: -height / 2, width: width, height: height))
         border.fillColor = .clear
@@ -237,12 +240,13 @@ private func setupModeButtons() {
         let btnH: CGFloat = 30
         let centerX = size.width / 2
 
-        // Row 1 (top): mode buttons
-        let row1Y: CGFloat = 50
+        // Row 1 (top): mode buttons — evenly spaced.
+        let row1Y: CGFloat = 66
+        let modeSpacing: CGFloat = 120
 
         let onePBtn = createModeButton(text: "1P + AI", width: btnW, height: btnH,
                                        color: NSColor.systemBlue, name: "mode_1p")
-        onePBtn.position = CGPoint(x: centerX - 160, y: row1Y)
+        onePBtn.position = CGPoint(x: centerX - modeSpacing, y: row1Y)
         modeLayer.addChild(onePBtn)
 
         let launchBtn = createModeButton(text: "LAUNCH", width: btnW, height: btnH,
@@ -254,44 +258,45 @@ private func setupModeButtons() {
 
         let twoPBtn = createModeButton(text: "2P LOCAL", width: btnW, height: btnH,
                                        color: NSColor.systemGreen, name: "mode_2p")
-        twoPBtn.position = CGPoint(x: centerX + 160, y: row1Y)
+        twoPBtn.position = CGPoint(x: centerX + modeSpacing, y: row1Y)
         modeLayer.addChild(twoPBtn)
 
-        // Row 2 (bottom): difficulty buttons + DEMO
+        // Row 2 (bottom): difficulty buttons + DEMO — evenly spaced, aligned.
         let diffBtnW: CGFloat = 80
         let diffH: CGFloat = 24
-        let row2Y: CGFloat = 18
+        let row2Y: CGFloat = 30
+        let diffSpacing: CGFloat = 95
 
         let easyBtn = createModeButton(text: "EASY", width: diffBtnW, height: diffH,
                                        color: NSColor.systemGreen, name: "diff_easy")
-        easyBtn.position = CGPoint(x: centerX - 140, y: row2Y)
+        easyBtn.position = CGPoint(x: centerX - diffSpacing * 2, y: row2Y)
         modeLayer.addChild(easyBtn)
 
         let medBtn = createModeButton(text: "MEDIUM", width: diffBtnW, height: diffH,
                                       color: NSColor.systemOrange, name: "diff_medium")
-        medBtn.position = CGPoint(x: centerX - 20, y: row2Y)
+        medBtn.position = CGPoint(x: centerX - diffSpacing, y: row2Y)
         modeLayer.addChild(medBtn)
         highlightDifficultyButton(medBtn)
 
         let hardBtn = createModeButton(text: "HARD", width: diffBtnW, height: diffH,
                                        color: NSColor.systemRed, name: "diff_hard")
-        hardBtn.position = CGPoint(x: centerX + 100, y: row2Y)
+        hardBtn.position = CGPoint(x: centerX, y: row2Y)
         modeLayer.addChild(hardBtn)
 
-        let demoBtn = createModeButton(text: "DEMO", width: 80, height: diffH,
+        let demoBtn = createModeButton(text: "DEMO", width: diffBtnW, height: diffH,
                                        color: NSColor.systemPurple, name: "demo")
-        demoBtn.position = CGPoint(x: centerX + 210, y: row2Y)
+        demoBtn.position = CGPoint(x: centerX + diffSpacing, y: row2Y)
         modeLayer.addChild(demoBtn)
 
-        let replayBtn = createModeButton(text: "REPLAY", width: 80, height: diffH,
+        let replayBtn = createModeButton(text: "REPLAY", width: diffBtnW, height: diffH,
                                          color: NSColor.systemTeal, name: "replay")
-        replayBtn.position = CGPoint(x: centerX + 310, y: row2Y)
+        replayBtn.position = CGPoint(x: centerX + diffSpacing * 2, y: row2Y)
         replayBtn.isHidden = true
         modeLayer.addChild(replayBtn)
 
         let replayCycleBtn = createModeButton(text: "< >", width: 40, height: diffH,
                                               color: NSColor.systemGray, name: "replay_cycle")
-        replayCycleBtn.position = CGPoint(x: centerX + 360, y: row2Y)
+        replayCycleBtn.position = CGPoint(x: centerX + diffSpacing * 2 + 62, y: row2Y)
         replayCycleBtn.isHidden = true
         modeLayer.addChild(replayCycleBtn)
     }
@@ -382,20 +387,22 @@ public override func mouseDown(with event: NSEvent) {
                 aiDifficulty = aiDifficulty ?? .medium
                 pickedShip1 = nil
                 pickedShip2 = nil
-                selectingPlayer = 1
+                clearHighlight(faction: .compact)
+                clearHighlight(faction: .dominion)
                 setLaunchEnabled(false)
                 updateP2Header(isAI: true)
-                statusLabel.text = "1P mode. Choose a Compact ship, then a Dominion ship."
+                refreshStatus()
                 highlightModeButton(btn)
             } else if name == "mode_2p" {
                 onUIAction?()
                 aiDifficulty = nil
                 pickedShip1 = nil
                 pickedShip2 = nil
-                selectingPlayer = 1
+                clearHighlight(faction: .compact)
+                clearHighlight(faction: .dominion)
                 setLaunchEnabled(false)
                 updateP2Header(isAI: false)
-                statusLabel.text = "2P mode. Player 1 picks a Compact ship, Player 2 a Dominion ship."
+                refreshStatus()
                 highlightModeButton(btn)
             } else if name == "diff_easy" {
                 onUIAction?()
@@ -447,8 +454,15 @@ public override func mouseDown(with event: NSEvent) {
                   name.hasPrefix("ship_") else { continue }
             guard SKScene.pointInSprite(scenePt, sprite: btn) else { continue }
 
-            let shipName = String(name.dropFirst(5))
-            guard let ship = ShipRoster.lookup(named: shipName) else { return }
+            // Button name is "ship_<faction>_<Name>". Parse the faction so we
+            // resolve the correct ship when names repeat across factions.
+            let stripped = String(name.dropFirst(5))          // "<faction>_<Name>"
+            let parts = stripped.split(separator: "_", maxSplits: 1)
+            guard parts.count == 2,
+                  let faction = Faction(rawValue: String(parts[0])),
+                  let ship = compactShips.first(where: { $0.name == parts[1] && $0.faction == faction })
+                ?? dominionShips.first(where: { $0.name == parts[1] && $0.faction == faction })
+            else { return }
             onUIAction?()
             handleShipSelect(ship: ship)
             return
@@ -489,38 +503,63 @@ public override func mouseDown(with event: NSEvent) {
     }
     
     private func handleShipSelect(ship: ShipDefinition) {
-        if selectingPlayer == 1 {
-            guard ship.faction == .compact else {
-                statusLabel.text = "Player 1 must choose a Compact (left) ship."
-                return
-            }
+        // Side-based selection: a Compact click always picks Player 1's ship,
+        // a Dominion click always picks Player 2's. Either side can be changed
+        // at any time, in either order — no lock-in.
+        if ship.faction == .compact {
+            if pickedShip1 != nil { clearHighlight(faction: .compact) }
             pickedShip1 = ship
-            selectingPlayer = 2
-            statusLabel.text = "Player 2: Choose a Dominion ship"
             highlightPicked(ship: ship, player: 1)
-        } else if selectingPlayer == 2 {
-            guard ship.faction == .dominion else {
-                statusLabel.text = "Player 2 must choose a Dominion (right) ship."
-                return
-            }
+        } else {
+            if pickedShip2 != nil { clearHighlight(faction: .dominion) }
             pickedShip2 = ship
-            selectingPlayer = 0
-            statusLabel.text = "\(pickedShip1?.name ?? "?") vs \(ship.name) — Press LAUNCH"
             highlightPicked(ship: ship, player: 2)
         }
+        refreshStatus()
         setLaunchEnabled(pickedShip1 != nil && pickedShip2 != nil)
+    }
+
+    /// Update the status line to reflect the current picks.
+    private func refreshStatus() {
+        guard let s1 = pickedShip1, let s2 = pickedShip2 else {
+            if pickedShip1 != nil {
+                statusLabel.text = "Choose a Dominion ship (Player 2)"
+            } else if pickedShip2 != nil {
+                statusLabel.text = "Choose a Compact ship (Player 1)"
+            } else {
+                statusLabel.text = aiDifficulty == nil
+                    ? "2P mode. Player 1 picks a Compact ship, Player 2 a Dominion ship."
+                    : "1P mode. Choose a Compact ship, then a Dominion ship."
+            }
+            return
+        }
+        statusLabel.text = "\(s1.name) vs \(s2.name) — Press LAUNCH"
     }
     
     private func highlightPicked(ship: ShipDefinition, player: Int) {
         let color: NSColor = player == 1 ? NSColor.systemGreen : NSColor.systemRed
+        let targetName = "ship_\(ship.faction.rawValue)_\(ship.name)"
         for child in buttonLayer.children {
             guard let btn = child as? SKSpriteNode,
-                  let btnName = btn.name,
-                  btnName == "ship_\(ship.name)" else { continue }
+                  btn.name == targetName else { continue }
             
             if let border = btn.children.first as? SKShapeNode {
                 border.strokeColor = color
                 border.lineWidth = 3
+            }
+        }
+    }
+
+    /// Reset a faction's ship borders to their default (unselected) look.
+    private func clearHighlight(faction: Faction) {
+        let defaultColor: NSColor = faction == .compact ? NSColor.systemGreen : NSColor.systemRed
+        for child in buttonLayer.children {
+            guard let btn = child as? SKSpriteNode,
+                  let btnName = btn.name,
+                  btnName.hasPrefix("ship_\(faction.rawValue)_") else { continue }
+            if let border = btn.children.first as? SKShapeNode {
+                border.strokeColor = defaultColor.withAlphaComponent(0.5)
+                border.lineWidth = 1
             }
         }
     }

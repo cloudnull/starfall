@@ -1,0 +1,4 @@
+<!-- Standard projectile - simple circle -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 4 4" width="32" height="32">
+  <circle cx="0" cy="0" r="2" fill="#00ccff" stroke="#ffffff" stroke-width="0.5"/>
+</svg>

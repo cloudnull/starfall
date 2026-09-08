@@ -52,13 +52,17 @@ func applyThrust(
         return
     }
 
-    let maxSpeed = def.maxThrust / def.mass
+    // The original Star Control thrust model:
+    // - maxThrust is the absolute speed cap (world units/frame), NOT divided by mass.
+    // - thrustIncrement is added to speed directly (NOT divided by mass).
+    // - Mass affects turning rate and gravity, not thrust acceleration.
+    let maxSpeed = def.maxThrust
     if speed >= maxSpeed {
         thrustTimer = def.thrustWait
         return
     }
 
-    let increment = def.thrustIncrement / def.mass
+    let increment = def.thrustIncrement
     speed = min(speed + increment, maxSpeed)
     // Add thrust in the facing direction to existing velocity (accumulates with gravity/drift).
     let thrustVel = facing.direction * increment
@@ -106,8 +110,8 @@ func applyTurn(
 
 /// Applies friction (drag) to the ship's speed scalar.
 func applyFriction(def: ShipDefinition, speed: inout Double) {
-    let friction = 1.0 - 1.0 / (def.mass + 1.0)
-    speed *= friction
+    let friction = 0.02 + 0.02 / (def.mass + 1.0)
+    speed *= (1.0 - friction)
     if speed < 0.01 {
         speed = 0
     }
@@ -200,7 +204,37 @@ func applyPlanetCollision(
     // Only deal damage on first impact, not repeated bounces.
     let damage = radialComponent > 0 ? 1 : 0
 
+    // Apply the new position and velocity to the inout parameters.
+    position = newPos
+    velocityOut = newVel
+
     return (damage, newPos, newVel)
+}
+
+/// Deflects an asteroid away from the planet so it does not fall in and clump
+/// at the sun. Ships get a hard bounce; asteroids just get pushed back out with
+/// their inward radial velocity removed (no damage, no big clear margin).
+func deflectAsteroidFromPlanet(
+    asteroidPosition: inout Vec2,
+    planetPosition: Vec2,
+    planetRadius: Double,
+    asteroidRadius: Double,
+    velocity: inout Vec2
+) {
+    let toPlanet = planetPosition - asteroidPosition
+    let dist = toPlanet.length
+    let collisionDistance = planetRadius + asteroidRadius
+
+    guard dist < collisionDistance, dist > 0 else { return }
+
+    let normal = toPlanet.normalized
+    // Push the asteroid just clear of the surface.
+    asteroidPosition = asteroidPosition - normal * (collisionDistance - dist + 1)
+    // Kill the inward radial component so it doesn't drift back in; keep tangential.
+    let radialComponent = velocity.dot(normal)
+    if radialComponent > 0 {
+        velocity = velocity - normal * radialComponent
+    }
 }
 
 /// Checks if a projectile has hit a ship.

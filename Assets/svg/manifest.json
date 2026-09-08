@@ -1,0 +1,178 @@
+{
+  "categories" : {
+    "ships" : 14,
+    "projectiles" : 5,
+    "effects" : 4,
+    "planets" : 4,
+    "ui" : 6
+  },
+  "files" : [
+    {
+      "name" : "broodstone",
+      "category" : "ships",
+      "path" : "svg\/ships\/broodstone.svg"
+    },
+    {
+      "category" : "ships",
+      "path" : "svg\/ships\/striker.svg",
+      "name" : "striker"
+    },
+    {
+      "name" : "shifter",
+      "category" : "ships",
+      "path" : "svg\/ships\/shifter.svg"
+    },
+    {
+      "name" : "dart",
+      "category" : "ships",
+      "path" : "svg\/ships\/dart.svg"
+    },
+    {
+      "path" : "svg\/ships\/veil.svg",
+      "name" : "veil",
+      "category" : "ships"
+    },
+    {
+      "category" : "ships",
+      "name" : "runner",
+      "path" : "svg\/ships\/runner.svg"
+    },
+    {
+      "category" : "ships",
+      "name" : "spark",
+      "path" : "svg\/ships\/spark.svg"
+    },
+    {
+      "path" : "svg\/ships\/dread_command.svg",
+      "category" : "ships",
+      "name" : "dread_command"
+    },
+    {
+      "name" : "sporepod",
+      "category" : "ships",
+      "path" : "svg\/ships\/sporepod.svg"
+    },
+    {
+      "category" : "ships",
+      "name" : "kesha_runner",
+      "path" : "svg\/ships\/kesha_runner.svg"
+    },
+    {
+      "name" : "warden",
+      "category" : "ships",
+      "path" : "svg\/ships\/warden.svg"
+    },
+    {
+      "name" : "harasser",
+      "path" : "svg\/ships\/harasser.svg",
+      "category" : "ships"
+    },
+    {
+      "path" : "svg\/ships\/reaver.svg",
+      "category" : "ships",
+      "name" : "reaver"
+    },
+    {
+      "name" : "skirmisher",
+      "category" : "ships",
+      "path" : "svg\/ships\/skirmisher.svg"
+    },
+    {
+      "category" : "projectiles",
+      "name" : "laser",
+      "path" : "svg\/projectiles\/laser.svg"
+    },
+    {
+      "category" : "projectiles",
+      "name" : "missile",
+      "path" : "svg\/projectiles\/missile.svg"
+    },
+    {
+      "category" : "projectiles",
+      "path" : "svg\/projectiles\/cone.svg",
+      "name" : "cone"
+    },
+    {
+      "path" : "svg\/projectiles\/spread.svg",
+      "category" : "projectiles",
+      "name" : "spread"
+    },
+    {
+      "path" : "svg\/projectiles\/projectile.svg",
+      "category" : "projectiles",
+      "name" : "projectile"
+    },
+    {
+      "name" : "explosion",
+      "path" : "svg\/effects\/explosion.svg",
+      "category" : "effects"
+    },
+    {
+      "category" : "effects",
+      "name" : "thrust_flame",
+      "path" : "svg\/effects\/thrust_flame.svg"
+    },
+    {
+      "name" : "impact_flash",
+      "path" : "svg\/effects\/impact_flash.svg",
+      "category" : "effects"
+    },
+    {
+      "path" : "svg\/effects\/shield.svg",
+      "category" : "effects",
+      "name" : "shield"
+    },
+    {
+      "category" : "planets",
+      "path" : "svg\/planets\/planet_default.svg",
+      "name" : "planet_default"
+    },
+    {
+      "category" : "planets",
+      "name" : "planet_desert",
+      "path" : "svg\/planets\/planet_desert.svg"
+    },
+    {
+      "path" : "svg\/planets\/planet_ice.svg",
+      "name" : "planet_ice",
+      "category" : "planets"
+    },
+    {
+      "name" : "planet_gas",
+      "path" : "svg\/planets\/planet_gas.svg",
+      "category" : "planets"
+    },
+    {
+      "name" : "starfield",
+      "path" : "svg\/ui\/starfield.svg",
+      "category" : "ui"
+    },
+    {
+      "path" : "svg\/ui\/hud_bar_bg.svg",
+      "category" : "ui",
+      "name" : "hud_bar_bg"
+    },
+    {
+      "category" : "ui",
+      "name" : "hud_bar_fill_crew",
+      "path" : "svg\/ui\/hud_bar_fill_crew.svg"
+    },
+    {
+      "category" : "ui",
+      "name" : "hud_bar_fill_energy",
+      "path" : "svg\/ui\/hud_bar_fill_energy.svg"
+    },
+    {
+      "category" : "ui",
+      "path" : "svg\/ui\/hud_bar_fill_shield.svg",
+      "name" : "hud_bar_fill_shield"
+    },
+    {
+      "category" : "ui",
+      "name" : "hud_bar_fill_heat",
+      "path" : "svg\/ui\/hud_bar_fill_heat.svg"
+    }
+  ],
+  "total_files" : 33,
+  "generated_at" : "2026-09-06T16:47:26Z"
+}

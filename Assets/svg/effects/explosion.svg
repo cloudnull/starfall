@@ -1,0 +1,8 @@
+<!-- Explosion effect - layered rings -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -16 32 32" width="256" height="256">
+  <circle cx="0" cy="0" r="2" fill="#ffdd00" fill-opacity="0.9"/>
+  <circle cx="0" cy="0" r="6" fill="#ff8800" fill-opacity="0.6"/>
+  <circle cx="0" cy="0" r="10" fill="#ff4400" fill-opacity="0.3"/>
+  <circle cx="0" cy="0" r="14" fill="#ff0000" fill-opacity="0.15"/>
+  <circle cx="0" cy="0" r="16" fill="none" stroke="#ffdd00" stroke-width="1" stroke-opacity="0.5"/>
+</svg>

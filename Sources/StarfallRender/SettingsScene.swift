@@ -10,6 +10,7 @@ public final class SettingsScene: SKScene {
     public var onBack: (() -> Void)?
     public var onUIAction: (() -> Void)?
     public var onClearSave: (() -> Void)?
+    public var onKeyBindings: (() -> Void)?
     public var audio: AudioEngine?
     
     public var onKeyEvent: ((UInt16, Bool) -> Void)? = nil
@@ -192,6 +193,17 @@ public final class SettingsScene: SKScene {
         clearSaveButton = resetBtn
         uiLayer.addChild(resetBtn)
         
+        // Key Bindings button
+        let keyBindingsBtn = MenuButton(
+            text: "Key Bindings",
+            width: 180,
+            height: 42,
+            color: NSColor.systemTeal
+        )
+        keyBindingsBtn.position = CGPoint(x: centerX + 120, y: size.height * 0.20)
+        keyBindingsBtn.name = "key_bindings"
+        uiLayer.addChild(keyBindingsBtn)
+        
         // Control reference labels
         let controlsTitle = SKLabelNode()
         controlsTitle.fontName = "Helvetica Neue"
@@ -291,6 +303,9 @@ public final class SettingsScene: SKScene {
                     updateMuteButton()
                 case "fullscreen":
                     toggleFullscreen()
+                case "key_bindings":
+                    onUIAction?()
+                    onKeyBindings?()
                 case "reset_save":
                     // Two-step: first click arms the confirm, second deletes.
                     if clearSaveArmed {

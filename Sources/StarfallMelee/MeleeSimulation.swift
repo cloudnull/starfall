@@ -185,12 +185,14 @@ public final class MeleeSimulation {
         applyThrustToShip(input: p2Input, ship: &ship2)
 
         // 4. Apply friction.
-        let friction1 = 1.0 - 1.0 / (ship1.definition.mass + 1.0)
-        let friction2 = 1.0 - 1.0 / (ship2.definition.mass + 1.0)
-        applyFriction(def: ship1.definition, speed: &ship1.speed)
-        applyFriction(def: ship2.definition, speed: &ship2.speed)
-        ship1.velocity = ship1.velocity * friction1
-        ship2.velocity = ship2.velocity * friction2
+        // The original Star Control uses 1/(mass+1) friction per frame.
+        // This project's balance decision (dec_ArKmxGrhaFQ4HrjmiiuwSUjC) modified
+        // it to 0.02 + 0.02/(mass+1) for higher thrust mobility.
+        // Friction is applied only to velocity; speed scalar is updated after.
+        let friction1 = 0.02 + 0.02 / (ship1.definition.mass + 1.0)
+        let friction2 = 0.02 + 0.02 / (ship2.definition.mass + 1.0)
+        ship1.velocity = ship1.velocity * (1.0 - friction1)
+        ship2.velocity = ship2.velocity * (1.0 - friction2)
 
         // 5. Apply gravity.
         applyGravityToShip(ship: &ship1)
@@ -740,24 +742,28 @@ public final class MeleeSimulation {
 
     /// Update asteroid positions and handle collisions with ships and projectiles.
     func updateAsteroids() {
-        // Update asteroid positions.
+        // Asteroids drift freely as static-ish hazards. They do NOT take planet
+        // gravity: a gravity well (especially with a speed cap and no friction)
+        // pulls them into a stable orbiting ring around the sun, which looks
+        // wrong and clusters all the obstacles in one spot. Free drift keeps
+        // them spread across the arena.
         for i in asteroids.indices {
-            // Apply planet gravity.
-            applyAsteroidGravity(
-                asteroidPosition: asteroids[i].position,
-                planetPosition: arena.planetPosition,
-                gravityStrength: arena.gravityStrength,
-                mass: asteroids[i].mass,
-                velocity: &asteroids[i].velocity
-            )
+            var ast = asteroids[i]
 
-            asteroids[i].position = asteroids[i].position + asteroids[i].velocity
+            ast.position = ast.position + ast.velocity
 
-            // Arena wrap.
-            asteroids[i].position = applyArenaWrap(
-                position: asteroids[i].position,
+            // Keep drift speed gentle so they never read as stray projectiles.
+            if ast.velocity.length > 3.0 {
+                ast.velocity = ast.velocity.normalized * 3.0
+            }
+
+            // Arena wrap keeps them circulating in view.
+            ast.position = applyArenaWrap(
+                position: ast.position,
                 bounds: arena.bounds
             )
+
+            asteroids[i] = ast
         }
 
         // Ship-asteroid collisions.

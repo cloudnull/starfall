@@ -741,38 +741,31 @@ public final class MeleeScene: SKScene {
     private func drawShip(node: SKNode, def: ShipDefinition, state: ShipState, color: NSColor, flash: Bool = false) {
         node.removeAllChildren()
 
-        let shipSize: CGFloat = 16
+        let shipSize: CGFloat = 24  // Larger for SVG texture detail
         let path = shipShapePath(shape: def.shape, size: shipSize)
         let accent = def.shape.accentColor
 
-        let shipShape = SKShapeNode(path: path)
-        shipShape.fillColor = flash ? NSColor.white : color.withAlphaComponent(0.85)
-        shipShape.strokeColor = NSColor(
-            red: accent.red, green: accent.green, blue: accent.blue, alpha: flash ? 1.0 : 0.9
-        )
-        shipShape.lineWidth = 1.5
-        node.addChild(shipShape)
-
-        // Cockpit light — small circle near the nose.
-        let cockpitPath = CGPath(ellipseIn: CGRect(
-            x: -2, y: shipSize * 0.2, width: 4, height: 4
-        ), transform: nil)
-        let cockpit = SKShapeNode(path: cockpitPath)
-        cockpit.fillColor = NSColor(
-            red: accent.red, green: accent.green, blue: accent.blue, alpha: 0.9
-        )
-        cockpit.strokeColor = .clear
-        node.addChild(cockpit)
-
-        // Species-specific inner detail lines.
-        if let detailPath = shipDetailPath(shape: def.shape, size: shipSize) {
-            let detail = SKShapeNode(path: detailPath)
-            detail.fillColor = .clear
-            detail.strokeColor = NSColor(
-                red: accent.red, green: accent.green, blue: accent.blue, alpha: 0.5
+        // Try to load SVG texture first (authoritative art asset).
+        // Fall back to CGPath rendering if SVG is unavailable.
+        let textureLoader = SVGTextureLoader.shared
+        let svgSize = shipSize * 2
+        
+        if let texture = textureLoader.texture(for: def.shape, size: svgSize) {
+            let sprite = SKSpriteNode(texture: texture)
+            sprite.size = CGSize(width: shipSize, height: shipSize)
+            sprite.color = flash ? NSColor.white : color.withAlphaComponent(0.85)
+            sprite.colorBlendFactor = flash ? 0.8 : 0.3
+            sprite.texture?.usesMipmaps = false
+            node.addChild(sprite)
+        } else {
+            // Fallback: hand-coded CGPath silhouette (kept for development).
+            let shipShapeNode = SKShapeNode(path: path)
+            shipShapeNode.fillColor = flash ? NSColor.white : color.withAlphaComponent(0.85)
+            shipShapeNode.strokeColor = NSColor(
+                red: accent.red, green: accent.green, blue: accent.blue, alpha: flash ? 1.0 : 0.9
             )
-            detail.lineWidth = 1
-            node.addChild(detail)
+            shipShapeNode.lineWidth = 1.5
+            node.addChild(shipShapeNode)
         }
 
         // Shield bubble with shimmer.
@@ -1502,13 +1495,22 @@ public final class MeleeScene: SKScene {
         let t = (clampedSep - minSep) / (maxSep - minSep) // 0 = close, 1 = far
 
         // Scale range: 1.4x when close, 1.0x when far.
-        let zoomFactor = 1.0 + (1.4 - 1.0) * (1.0 - t)
-        let zoom = CGFloat(zoomFactor)
+        var zoomFactor = 1.0 + (1.4 - 1.0) * (1.0 - t)
 
         // Center camera on midpoint (accounting for wrap).
         let midX = ship1Pos.x + dx * 0.5
         let midY = ship1Pos.y + dy * 0.5
         let midOffset = worldToScreen(Vec2(x: midX, y: midY))
+
+        // Clamp zoom so the farthest ship never leaves the viewport. Each ship
+        // sits (separation/2)*scale*zoom from the camera center; that must stay
+        // within the smaller half-dimension or the enemy goes off-screen.
+        let halfViewport = min(size.width, size.height) / 2
+        let shipOffsetWorld = (separation / 2) * scale
+        if shipOffsetWorld > 0 {
+            zoomFactor = min(zoomFactor, halfViewport / shipOffsetWorld)
+        }
+        let zoom = CGFloat(zoomFactor)
 
         cameraNode.position = CGPoint(
             x: CGFloat(size.width / 2) - midOffset.x,

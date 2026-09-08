@@ -1,0 +1,210 @@
+import XCTest
+@testable import StarfallMelee
+@testable import StarfallAI
+import StarfallCore
+import StarfallData
+import Foundation
+
+/// Returns a unique key for a ship (name may not be unique across factions).
+private func shipKey(_ s: ShipDefinition) -> String {
+    "\(s.faction == .compact ? "C" : "D")_\(s.name)"
+}
+
+/// Headless balance matrix harness.
+///
+/// Runs every ship against every other ship with AI on both sides
+/// at all three difficulty levels. Produces a win-rate matrix.
+///
+/// This is a long-running test — it runs 14×13×3×20 = 10,920 matches.
+final class BalanceMatrixTests: XCTestCase {
+
+    /// Number of matches per matchup per difficulty.
+    private let matchCount = 20
+
+    private let arena = ArenaState(
+        bounds: Rect(min: Vec2(x: -400, y: -300), max: Vec2(x: 400, y: 300)),
+        planetPosition: Vec2.zero,
+        planetRadius: 50,
+        gravityStrength: 18_000
+    )
+
+    func testGenerateBalanceMatrix() {
+        let allShips = ShipRoster.all
+        let difficulties: [(AIDifficulty, String)] = [
+            (.easy, "Easy"),
+            (.medium, "Medium"),
+            (.hard, "Hard")
+        ]
+
+        // Results: [attackerKey][defenderKey][difficultyName] = wins for attacker
+        var results: [String: [String: [String: Int]]] = [:]
+
+        for attacker in allShips {
+            results[shipKey(attacker)] = [:]
+            for defender in allShips where defender.name != attacker.name {
+                results[shipKey(attacker)]![shipKey(defender)] = [:]
+                for (_, diffName) in difficulties {
+                    results[shipKey(attacker)]![shipKey(defender)]![diffName] = 0
+                }
+            }
+        }
+
+        let totalMatches = allShips.count * (allShips.count - 1) * difficulties.count * matchCount
+        var matchIndex = 0
+
+        for attackerShip in allShips {
+            for defenderShip in allShips where defenderShip.name != attackerShip.name {
+                for (difficulty, diffName) in difficulties {
+                    for gameIndex in 0..<matchCount {
+                        let seed1 = UInt64(matchIndex * 1000 + gameIndex * 31)
+                        let seed2 = UInt64(matchIndex * 1000 + gameIndex * 31 + 1)
+
+                        let s1Pos = Vec2(x: arena.bounds.min.x + 100, y: arena.bounds.min.y + 100)
+                        let s2Pos = Vec2(x: arena.bounds.max.x - 100, y: arena.bounds.max.y - 100)
+
+                        let sim = MeleeSimulation(
+                            arena: arena,
+                            ship1Def: attackerShip,
+                            ship1Pos: s1Pos,
+                            ship1Facing: .zero,
+                            ship2Def: defenderShip,
+                            ship2Pos: s2Pos,
+                            ship2Facing: Angle(.pi)
+                        )
+
+                        // Clear asteroids for consistent testing.
+                        sim.asteroids = []
+
+                        let pilot1 = AIPilot(difficulty: difficulty, seed: seed1)
+                        let pilot2 = AIPilot(difficulty: difficulty, seed: seed2)
+
+                        let maxFrames = 60 * 24
+                        for _ in 0..<maxFrames {
+                            if sim.outcome != nil { break }
+
+                            let p1Intent = pilot1.think(
+                                own: sim.ship1, opponent: sim.ship2,
+                                projectiles: sim.projectiles, arena: sim.arena
+                            )
+                            let p2Intent = pilot2.think(
+                                own: sim.ship2, opponent: sim.ship1,
+                                projectiles: sim.projectiles, arena: sim.arena
+                            )
+                            sim.step(p1Input: p1Intent, p2Input: p2Intent)
+                        }
+
+                        if let outcome = sim.outcome,
+                           let winnerID = outcome.winnerID {
+                            if winnerID == sim.ship1.id {
+                                results[shipKey(attackerShip)]![shipKey(defenderShip)]![diffName]! += 1
+                            }
+                        }
+
+                        matchIndex += 1
+                    }
+                }
+            }
+        }
+
+        XCTAssertEqual(results.count, allShips.count)
+        writeBalanceMatrix(results: results, difficulties: difficulties, matchCount: matchCount)
+        print("Balance matrix generated: \(matchIndex) matches played")
+    }
+
+    private func writeBalanceMatrix(
+        results: [String: [String: [String: Int]]],
+        difficulties: [(AIDifficulty, String)],
+        matchCount: Int
+    ) {
+        let outputPath = FileManager.default.currentDirectoryPath + "/docs/balance-matrix.md"
+        let ships = ShipRoster.all
+
+        var lines: [String] = []
+        lines.append("# Starfall Balance Matrix")
+        lines.append("")
+        lines.append("Generated by `BalanceMatrixTests.testGenerateBalanceMatrix`")
+        lines.append("")
+        lines.append("- **Matches per matchup:** \(matchCount)")
+        lines.append("- **Difficulty levels:** \(difficulties.map { $0.1 }.joined(separator: ", "))")
+        lines.append("- **AI pilots:** Both sides use AIPilot at the same difficulty")
+        lines.append("- **Asteroids:** Disabled for consistent testing")
+        lines.append("- **Arena:** bounds=[-400,-300]×[400,300], planet at origin, radius=50, gravity=18,000")
+        lines.append("- **Duration:** 60 seconds max (24 FPS × 60 = 1440 frames)")
+        lines.append("- **Total games:** \(14 * 13 * 3 * matchCount)")
+        lines.append("")
+        lines.append("## Ship Index")
+        lines.append("")
+        for (i, ship) in ships.enumerated() {
+            let side = ship.faction == .compact ? "Compact" : "Dominion"
+            lines.append("\(i + 1). **\(ship.name)** (\(ship.species), \(side)) — Cost: \(ship.cost)")
+        }
+        lines.append("")
+
+        for (_, diffName) in difficulties {
+            lines.append("## Win Rate Matrix (\(diffName) Difficulty)")
+            lines.append("")
+            lines.append("Rows = attacker ship, Columns = defender ship. Values are win rates (0-100%).")
+            lines.append("")
+
+            let headerShips = ships.map { $0.name }
+            var header = "| Attacker \\ Defender |"
+            for name in headerShips {
+                header += " \(name) |"
+            }
+            lines.append(header)
+
+            var separator = "|---------------------|"
+            for _ in headerShips {
+                separator += "-------|"
+            }
+            lines.append(separator)
+
+            for attacker in ships {
+                var row = "| \(attacker.name) |"
+                for defender in ships {
+                    if shipKey(attacker) == shipKey(defender) {
+                        row += " — |"
+                    } else {
+                        let wins = results[shipKey(attacker)]?[shipKey(defender)]?[diffName] ?? 0
+                        let rate = Double(wins) / Double(matchCount) * 100
+                        row += " \(String(format: "%.0f", rate))% |"
+                    }
+                }
+                lines.append(row)
+            }
+            lines.append("")
+        }
+
+        lines.append("## Cost-Effectiveness Analysis (Medium Difficulty)")
+        lines.append("")
+        lines.append("Win rate weighted by strategic cost. Cheaper ships with good win rates")
+        lines.append("are more cost-effective than expensive ones.")
+        lines.append("")
+        lines.append("| Ship | Cost | Avg Win Rate | Cost-Effectiveness |")
+        lines.append("|------|------|---------------------|--------------------|")
+
+        for ship in ships {
+            var totalWins = 0
+            var totalGames = 0
+            for defender in ships where defender.name != ship.name {
+                totalWins += results[shipKey(ship)]?[shipKey(defender)]?["Medium"] ?? 0
+                totalGames += matchCount
+            }
+            let avgRate = Double(totalWins) / Double(totalGames) * 100
+            let effectiveness = avgRate / Double(ship.cost)
+            lines.append("| \(ship.name) | \(ship.cost) | \(String(format: "%.0f", avgRate))% | \(String(format: "%.2f", effectiveness)) |")
+        }
+        lines.append("")
+
+        lines.append("## Notes")
+        lines.append("")
+        lines.append("- The original Star Control was deliberately asymmetric: expensive ships")
+        lines.append("are expected to beat cheaper ships. Cost-effectiveness, not pure win rate,")
+        lines.append("is the proper balance metric.")
+        lines.append("- Regenerate by running: `swift test --filter BalanceMatrixTests`")
+        lines.append("")
+
+        let content = lines.joined(separator: "\n")
+        try? content.write(toFile: outputPath, atomically: true, encoding: .utf8)
+    }
+}

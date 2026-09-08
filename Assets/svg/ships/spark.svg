@@ -1,0 +1,8 @@
+<!-- Spark (Xhofi) - Jagged, aggressive, pointed -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 48 48" width="192" height="192">
+  <polygon points="0,-20 -8,-2 -16,4 -10,10 0,20 10,10 16,4 8,-2"
+    fill="#ff4010" fill-opacity="0.9"
+    stroke="#ff6020" stroke-width="1.5"/>
+  <line x1="-8" y1="8" x2="8" y2="8" stroke="#ff6020" stroke-width="1" stroke-opacity="0.3"/>
+  <polygon points="0,2 -4,6 0,6 4,6" fill="#ff6020" fill-opacity="0.5" stroke="none"/>
+</svg>

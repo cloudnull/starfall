@@ -50,6 +50,9 @@ let package = Package(
         .target(
             name: "StarfallRender",
             dependencies: ["StarfallCore", "StarfallMelee", "StarfallCampaign", "StarfallData", "StarfallAudio"],
+            resources: [
+                .process("../../Assets/svg")
+            ],
             linkerSettings: [
                 .linkedFramework("SpriteKit"),
                 .linkedFramework("AppKit"),

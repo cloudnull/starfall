@@ -9,7 +9,7 @@ final class MeleeReplayTests: XCTestCase {
             bounds: Rect(min: Vec2(x: -400, y: -300), max: Vec2(x: 400, y: 300)),
             planetPosition: Vec2.zero,
             planetRadius: 50,
-            gravityStrength: 50_000
+            gravityStrength: 18_000
         )
     }
 

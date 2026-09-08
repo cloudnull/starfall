@@ -1,0 +1,14 @@
+<!-- Planet variant 3 - ice world -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" width="400" height="400">
+  <defs>
+    <radialGradient id="planetIce" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#b3e5fc"/>
+      <stop offset="100%" stop-color="#60a6ea"/>
+    </radialGradient>
+  </defs>
+  <circle cx="0" cy="0" r="45" fill="url(#planetIce)"/>
+  <path d="M-45,0 Q-20,-10 0,0 Q20,-5 45,0 Q20,10 0,15 Q-20,10 -45,0"
+    fill="none" stroke="#e0f0ff" stroke-width="1" stroke-opacity="0.4"/>
+  <path d="M-45,20 Q0,30 45,20"
+    fill="none" stroke="#e0f0ff" stroke-width="0.8" stroke-opacity="0.3"/>
+</svg>

@@ -1,0 +1,6 @@
+<!-- Spread projectile - crystal shard (diamond) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -6 6 12" width="48" height="96">
+  <polygon points="0,-6 -2,0 0,6 2,0"
+    fill="#4cc7ff" fill-opacity="0.9"
+    stroke="#a0d8ff" stroke-width="0.5"/>
+</svg>

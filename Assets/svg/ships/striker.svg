@@ -1,0 +1,9 @@
+<!-- Striker (Vaelen) - Angular warrior fighter -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-28 -28 56 56" width="224" height="224">
+  <polygon points="0,-24 -6,-10 -20,-6 -18,4 -2,-16 2,-16 18,4 20,-6 6,-10"
+    fill="#e0c030" fill-opacity="0.9"
+    stroke="#f5da50" stroke-width="1.5"/>
+  <polygon points="0,-24 -4,-12 -16,-8 0,2"
+    fill="#f5da50" fill-opacity="0.3" stroke="none"/>
+  <line x1="-14" y1="2" x2="14" y2="2" stroke="#f5da50" stroke-width="1"/>
+</svg>

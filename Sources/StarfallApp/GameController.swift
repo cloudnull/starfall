@@ -48,7 +48,7 @@ final class GameController: NSObject {
     private var simulation: MeleeSimulation?
     private var renderer: MeleeRenderer?
     private var selectScene: SelectScene?
-    private let inputProcessor = InputProcessor()
+    private var inputProcessor = InputProcessor()
     private let fixedTimestep = FixedTimestep()
     private let audio = AudioEngine()
     private var aiPilot: AIPilot?
@@ -193,20 +193,38 @@ final class GameController: NSObject {
     }()
     
     /// Present a scene with a fade transition.
-    private func presentSceneWithFade(_ scene: SKScene, scaleMode: SKSceneScaleMode = .aspectFit) {
+    //
+    // Default to .resizeFill: menu/select/tutorial/cinematic scenes hit-test
+    // mouse clicks with SKScene.pointInSprite against node *layout* positions,
+    // and convertMouseLocation (convertPoint(fromView:)) does NOT undo the
+    // .aspectFit letterbox scale. Under .aspectFit the returned point is
+    // mis-scaled, so clicks miss every button. .resizeFill makes scene
+    // coordinates map 1:1 to the view, which is what the hit-testing assumes.
+    // This is the same class of bug as BUG-1 in docs/resolved-BUG_REPORT.md,
+    // previously fixed only for the campaign scene.
+    private func presentSceneWithFade(_ scene: SKScene, scaleMode: SKSceneScaleMode = .resizeFill) {
         gameView.ignoresSiblingOrder = true
         scene.scaleMode = scaleMode
         
-        // If a scene is already showing, fade out, swap, fade in
-        if gameView.scene != nil {
-            fadeOverlay.removeFromParent()
+        // Fade transition. The overlay must live in the *presented* scene for
+        // its SKActions to run — SpriteKit only executes actions on nodes in the
+        // active scene. So: fade the current scene's overlay to black, swap the
+        // scene, then attach the same overlay to the new scene and fade it in.
+        fadeOverlay.removeFromParent()
+        
+        if let current = gameView.scene {
             fadeOverlay.alpha = 0
-            scene.addChild(fadeOverlay)
             fadeOverlay.zPosition = 9999
+            current.addChild(fadeOverlay)
             
             let fadeOut = SKAction.fadeAlpha(to: 1, duration: 0.25)
             let swap = SKAction.run {
                 self.gameView.presentScene(scene)
+                // Move the overlay into the new scene (still alpha 1) so we can
+                // fade in over it.
+                self.fadeOverlay.removeFromParent()
+                scene.addChild(self.fadeOverlay)
+                self.fadeOverlay.zPosition = 9999
             }
             let fadeIn = SKAction.fadeAlpha(to: 0, duration: 0.25)
             
@@ -274,9 +292,44 @@ final class GameController: NSObject {
         settings.onUIAction = { [self] in
             self.audio.play(.uiClick)
         }
+        settings.onKeyBindings = { [self] in
+            self.showKeyBindings()
+        }
         wireSceneKeyboard(&settings.onKeyEvent)
         presentSceneWithFade(settings)
         audio.playMusic(.menu)
+    }
+    
+    // MARK: - Key Bindings
+    
+    func showKeyBindings() {
+        currentScreen = .settings
+        inputProcessor.clear()
+        simulation = nil
+        renderer = nil
+        aiPilot = nil
+        selectScene = nil
+        
+        let scene = KeyBindingsScene(size: kSceneSize)
+        scene.onBack = { [self] in
+            // Reload input processor with saved bindings.
+            self.inputProcessor = InputProcessor(p1: loadSavedKeyBindings())
+            self.showSettings()
+        }
+        scene.onUIAction = { [self] in
+            self.audio.play(.uiClick)
+        }
+        wireSceneKeyboard(&scene.onKeyEvent)
+        presentSceneWithFade(scene)
+    }
+    
+    /// Loads saved key bindings from UserDefaults, falling back to defaults.
+    private func loadSavedKeyBindings() -> MeleeKeyBindings {
+        if let data = UserDefaults.standard.data(forKey: "starfall_key_bindings"),
+           let saved = try? JSONDecoder().decode(MeleeKeyBindings.self, from: data) {
+            return saved
+        }
+        return MeleeKeyBindings()
     }
     
     // MARK: - Tutorial

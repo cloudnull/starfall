@@ -1,0 +1,10 @@
+<!-- Sporepod (Fungor) - Round fungal pod -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -28 48 56" width="192" height="224">
+  <ellipse cx="0" cy="0" rx="20" ry="18"
+    fill="#50b030" fill-opacity="0.85"
+    stroke="#70c040" stroke-width="1.5"/>
+  <path d="M-12,4 Q0,-2 12,4 Q0,10 -12,4" fill="none" stroke="#70c040" stroke-width="1" stroke-opacity="0.3"/>
+  <circle cx="0" cy="-4" r="3" fill="#fff59d" fill-opacity="0.6"/>
+  <circle cx="-10" cy="8" r="2" fill="#70c040" fill-opacity="0.7"/>
+  <circle cx="10" cy="8" r="2" fill="#70c040" fill-opacity="0.7"/>
+</svg>

@@ -1,0 +1,7 @@
+<!-- Dart (Paelin) - Tiny elusive scout, teardrop -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-16 -24 32 48" width="128" height="192">
+  <polygon points="0,-18 -10,-4 -12,10 -2,20 2,20 12,10 10,-4"
+    fill="#ff70b0" fill-opacity="0.9"
+    stroke="#ff90c8" stroke-width="1.5"/>
+  <circle cx="0" cy="2" r="3" fill="#ffda79" fill-opacity="0.8"/>
+</svg>

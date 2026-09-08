@@ -1,0 +1,15 @@
+<!-- Planet variant 4 - gas giant -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" width="400" height="400">
+  <defs>
+    <radialGradient id="planetGas" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#b39ddb"/>
+      <stop offset="50%" stop-color="#8e6c88"/>
+      <stop offset="100%" stop-color="#5e35b1"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="0" cy="0" rx="48" ry="40" fill="url(#planetGas)"/>
+  <!-- Gas bands -->
+  <ellipse cx="0" cy="10" rx="48" ry="40" fill="none" stroke="#6a1b9a" stroke-width="1" stroke-opacity="0.2"/>
+  <ellipse cx="0" cy="-5" rx="45" ry="37" fill="none" stroke="#7b1fa2" stroke-width="1" stroke-opacity="0.15"/>
+  <ellipse cx="0" cy="15" rx="42" ry="34" fill="none" stroke="#8e24aa" stroke-width="1" stroke-opacity="0.2"/>
+</svg>

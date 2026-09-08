@@ -225,7 +225,7 @@ public final class AIPilot {
             if shieldLow || hullLow {
                 return rng.nextDouble() < 0.7
             }
-            return isUnderFire(projectiles: projectiles, targetID: own.id) && rng.nextDouble() < 0.5
+            return isUnderFire(projectiles: projectiles, targetID: own.id, targetPosition: own.position) && rng.nextDouble() < 0.5
 
         case .cloak:
             if dist < 150 {
@@ -243,7 +243,7 @@ public final class AIPilot {
             if dist < 100 {
                 return rng.nextDouble() < 0.7
             }
-            return isUnderFire(projectiles: projectiles, targetID: own.id) && rng.nextDouble() < 0.5
+            return isUnderFire(projectiles: projectiles, targetID: own.id, targetPosition: own.position) && rng.nextDouble() < 0.5
 
         case .kamikaze:
             if difficulty == .easy { return false }
@@ -271,7 +271,7 @@ public final class AIPilot {
             return false
 
         case .pointDefense:
-            if isUnderFire(projectiles: projectiles, targetID: own.id) {
+            if isUnderFire(projectiles: projectiles, targetID: own.id, targetPosition: own.position) {
                 return rng.nextDouble() < 0.7
             }
             return false
@@ -432,8 +432,17 @@ public final class AIPilot {
 
     // MARK: - Helpers
 
-    private func isUnderFire(projectiles: [Projectile], targetID: EntityID) -> Bool {
-        projectiles.contains { $0.ownerShipID != targetID }
+    /// Returns true if enemy projectiles are close enough to threaten the target ship.
+    /// The old implementation checked `ownerShipID != targetID` which was true
+    /// for any enemy projectile regardless of proximity, causing the AI to
+    /// treat itself as "under fire" even when no shots were incoming.
+    private func isUnderFire(projectiles: [Projectile], targetID: EntityID,
+                             targetPosition: Vec2) -> Bool {
+        // Check for enemy projectiles within 150 world units of the target.
+        projectiles.contains { proj in
+            proj.ownerShipID != targetID &&
+            distance(proj.position, targetPosition) < 150
+        }
     }
 }
 

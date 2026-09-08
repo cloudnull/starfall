@@ -1,0 +1,14 @@
+<!-- Planet variant 2 - desert world -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" width="400" height="400">
+  <defs>
+    <radialGradient id="planetDesert" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#d4a76a"/>
+      <stop offset="100%" stop-color="#a67c39"/>
+    </radialGradient>
+  </defs>
+  <circle cx="0" cy="0" r="45" fill="url(#planetDesert)"/>
+  <path d="M-45,5 Q-25,-5 -5,5 Q15,10 45,5 Q20,20 0,15 Q-20,20 -45,5"
+    fill="none" stroke="#8a5a2b" stroke-width="1.5" stroke-opacity="0.3"/>
+  <path d="M-45,20 Q0,30 45,20"
+    fill="none" stroke="#8a5a2b" stroke-width="1" stroke-opacity="0.25"/>
+</svg>

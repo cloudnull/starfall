@@ -1,0 +1,10 @@
+<!-- Skirmisher (Drul) - Bird-like, small, with wing-like protrusions -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 40 40" width="160" height="160">
+  <polygon points="0,-16 -6,-8 -12,-4 -16,0 -10,4 0,8 10,4 16,0 12,-4 6,-8"
+    fill="#c0e030" fill-opacity="0.85"
+    stroke="#d0f040" stroke-width="1.5"/>
+  <!-- Wing protrusions -->
+  <path d="M-12,-2 Q-18,-4 -16,2" fill="none" stroke="#d0f040" stroke-width="2"/>
+  <path d="M12,-2 Q18,-4 16,2" fill="none" stroke="#d0f040" stroke-width="2"/>
+  <circle cx="0" cy="-6" r="3" fill="#ffd93d" fill-opacity="0.8"/>
+</svg>

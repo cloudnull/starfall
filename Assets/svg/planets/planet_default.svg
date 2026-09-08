@@ -1,0 +1,15 @@
+<!-- Planet body - textured sphere -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 100 100" width="400" height="400">
+  <defs>
+    <radialGradient id="planetGrad" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" stop-color="#4a90d9"/>
+      <stop offset="100%" stop-color="#2a5a8a"/>
+    </radialGradient>
+  </defs>
+  <circle cx="0" cy="0" r="45" fill="url(#planetGrad)"/>
+  <!-- Surface bands -->
+  <path d="M-45,0 Q-25,-10 -5,0 Q15,5 45,0 Q10,15 -10,15 Q-30,10 -45,0"
+    fill="none" stroke="#1a3a5a" stroke-width="1.5" stroke-opacity="0.4"/>
+  <path d="M-45,15 Q-20,25 0,20 Q20,15 45,15"
+    fill="none" stroke="#1a3a5a" stroke-width="1" stroke-opacity="0.3"/>
+</svg>

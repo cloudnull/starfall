@@ -7,7 +7,7 @@ public func generateDemoReplay() -> MeleeReplay {
         bounds: Rect(min: Vec2(x: -400, y: -300), max: Vec2(x: 400, y: 300)),
         planetPosition: Vec2.zero,
         planetRadius: 50,
-        gravityStrength: 50_000
+        gravityStrength: 18_000
     )
 
     let s1Pos = Vec2(x: -300, y: -200)

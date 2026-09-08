@@ -582,7 +582,7 @@ public final class CampaignSimulation {
             
             var newShips: [FleetShipEntry] = []
             for i in (result.startIndex ..< result.endIndex) {
-                let roll = Double.random(in: 0.0...1.0)
+                let roll = rng.nextDouble(in: 0.0...1.0)
                 if roll < survivalChance {
                     let maxCrew = ShipRoster.all.indices.contains(result[i].shipIndex)
                         ? ShipRoster.all[result[i].shipIndex].maxCrew
