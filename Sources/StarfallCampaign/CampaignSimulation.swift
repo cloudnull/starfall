@@ -137,6 +137,8 @@ public final class CampaignSimulation {
             result = executeScuttle(fleetID, shipSlot: shipIndex)
         case .mergeFleets(let fleetID1, let fleetID2):
             result = executeMergeFleets(fleetID1, fleetID2)
+        case .rebuildFleet:
+            result = executeRebuildFleet()
         case .pass:
             // Pass skips remaining actions for this turn.
             state.actionsRemaining = 0
@@ -379,6 +381,67 @@ public final class CampaignSimulation {
         return nil
     }
     
+    /// Rebuild a starting fleet at the home starbase. Lets a faction recover
+    /// after losing every ship (the starbase is never captured, so a faction
+    /// that still holds it can always field a fleet again). Uses the same
+    /// starting roster as a new campaign for that faction.
+    private func executeRebuildFleet() -> String? {
+        let faction = state.currentFaction
+        guard hasStarbase(faction) else { return "Starbase destroyed." }
+        
+        guard let starbaseID = findStarbaseSystem(faction) else {
+            return "Starbase destroyed."
+        }
+        
+        // Starting roster mirrors setupInitialMap. Crew is slightly below max
+        // to reflect the fresh-but-unproven state of a rebuilt force.
+        let ships: [FleetShipEntry]
+        switch faction {
+        case .compact:
+            ships = [
+                FleetShipEntry(shipIndex: 1, crew: 18), // Striker (max 20)
+                FleetShipEntry(shipIndex: 5, crew: 16), // Runner (max 18)
+            ]
+        case .dominion:
+            ships = [
+                FleetShipEntry(shipIndex: 8, crew: 18), // Sporepod (max 20)
+                FleetShipEntry(shipIndex: 12, crew: 20), // Reaver (max 22)
+            ]
+        }
+        
+        let fleetID = EntityID(state.nextFleetID)
+        state.nextFleetID += 1
+        state.fleets[fleetID] = FleetUnit(
+            id: fleetID, systemID: starbaseID, faction: faction, ships: ships
+        )
+        
+        state.actionsRemaining -= 1
+        return nil
+    }
+    
+    /// Recover up to `recruitAmount` crew on each surviving ship each turn.
+    /// Ships stay in the fight at reduced strength instead of being a dead
+    /// weight after one bad encounter.
+    private func repairFleetCrew() {
+        for fleetID in Array(state.fleets.keys) {
+            guard var fleet = state.fleets[fleetID], !fleet.ships.isEmpty else { continue }
+            var changed = false
+            for i in fleet.ships.indices {
+                guard fleet.ships[i].crew > 0 else { continue }
+                let maxCrew = ShipRoster.all.indices.contains(fleet.ships[i].shipIndex)
+                    ? ShipRoster.all[fleet.ships[i].shipIndex].maxCrew
+                    : fleet.ships[i].crew
+                if fleet.ships[i].crew < maxCrew {
+                    fleet.ships[i].crew = min(fleet.ships[i].crew + recruitAmount, maxCrew)
+                    changed = true
+                }
+            }
+            if changed {
+                state.fleets[fleetID] = fleet
+            }
+        }
+    }
+    
     // MARK: - End Turn & Processing
     
     /// End the current faction's turn and process game state.
@@ -394,6 +457,10 @@ public final class CampaignSimulation {
         
         // Generate resources (always).
         generateIncome()
+        
+        // Recover a little crew on surviving ships each turn — an attrition
+        // relief valve so combat doesn't permanently cripple a fleet.
+        repairFleetCrew()
         
         // Check victory conditions (always, even if combat was triggered).
         checkVictory()
@@ -725,6 +792,13 @@ public final class CampaignSimulation {
         }
         return nil
     }
+
+    /// Whether the faction's home starbase still exists. A starbase is never
+    /// captured or destroyed, so a faction with a starbase can always rebuild
+    /// a fleet even if every ship has been lost.
+    public func hasStarbase(_ faction: Faction) -> Bool {
+        findStarbaseSystem(faction) != nil
+    }
     
     private func getShipCost(_ index: Int) -> Int? {
         guard index >= 0 && index < ShipRoster.all.count else { return nil }
@@ -830,7 +904,7 @@ private struct AISituation {
 
 private let aiFeintChance: Double = 0.3
 private let aiSupplyTargetThreshold: Int = 3
-private let aiScoutFleetSize: Int = 1
+private let aiMinFeintFleetSize: Int = 3
 
 extension CampaignSimulation {
 
@@ -848,7 +922,9 @@ extension CampaignSimulation {
                   fleet.destinationSystemID == nil,
                   actionsLeft > 0 else { continue }
 
-            let isFeintCandidate = fleet.ships.count > aiScoutFleetSize &&
+            // Only 3+ ship fleets are feint candidates (executeFeint refuses to
+            // drop below 2 ships, so it would always no-op otherwise).
+            let isFeintCandidate = fleet.ships.count >= aiMinFeintFleetSize &&
                                    rng.nextDouble() < aiFeintChance &&
                                    situation.turnPhase == .mid
 
@@ -858,6 +934,21 @@ extension CampaignSimulation {
                 ((currentSys!.type == .life && !currentSys!.hasColony && currentSys!.currentAction == nil) ||
                  (currentSys!.type == .mineral && !currentSys!.hasMine && currentSys!.currentAction == nil))
 
+            let aiFleetValue = fleetValue(fleet)
+
+            // A move into an enemy-occupied system triggers combat. Don't walk
+            // into a fight the AI can't win — that's what made encounters feel
+            // random and attritional. Only commit if clearly out-gunning the
+            // defender, or if the defender is weak enough to be worth a
+            // pick-off.
+            func isCommittingToFavorableCombat(_ targetID: EntityID) -> Bool {
+                guard let enemyFleet = state.fleets.values.first(where: {
+                    $0.systemID == targetID && $0.faction == enemyFaction
+                }) else { return true }  // No enemy fleet there — no forced combat.
+                let enemyValue = fleetValue(enemyFleet)
+                return aiFleetValue >= enemyValue * 2 || enemyValue <= 20
+            }
+
             if isFeintCandidate && !hasEconomyToBuild {
                 if executeFeint(fleetID, enemyFaction) {
                     actionsLeft -= 1
@@ -865,35 +956,32 @@ extension CampaignSimulation {
             } else if hasEconomyToBuild {
                 // Stay and develop this system; economy phase will handle it
             } else if situation.isBehindOnResources {
-                if let targetID = findSupplyDisruptionTarget(fleet.systemID, enemyFaction: enemyFaction) {
-                    if self.execute(.moveFleet(fleetID: fleetID, targetSystemID: targetID)) == nil {
-                        actionsLeft -= 1
-                    } else if let targetID = findBestTarget(fleet.systemID, aiFaction: aiFaction, situation: situation) {
-                        if self.execute(.moveFleet(fleetID: fleetID, targetSystemID: targetID)) == nil {
-                            actionsLeft -= 1
-                        }
-                    }
-                } else if let targetID = findBestTarget(fleet.systemID, aiFaction: aiFaction, situation: situation) {
+                if let targetID = findSupplyDisruptionTarget(fleet.systemID, enemyFaction: enemyFaction),
+                   isCommittingToFavorableCombat(targetID) {
                     if self.execute(.moveFleet(fleetID: fleetID, targetSystemID: targetID)) == nil {
                         actionsLeft -= 1
                     }
                 }
-            } else if let targetID = findBestTarget(fleet.systemID, aiFaction: aiFaction, situation: situation) {
+            } else if let targetID = findBestTarget(fleet.systemID, aiFaction: aiFaction, situation: situation),
+                      isCommittingToFavorableCombat(targetID) {
                 if self.execute(.moveFleet(fleetID: fleetID, targetSystemID: targetID)) == nil {
                     actionsLeft -= 1
                 }
             }
         }
 
-        // Phase 2: Build ships based on fleet composition needs
-        while let resources = state.resources[aiFaction],
-              resources > 0, actionsLeft > 0 {
-            if let shipIndex = selectShipToBuild(aiFaction, situation: situation),
-               self.execute(.buildShip(shipIndex: shipIndex)) == nil {
-                actionsLeft -= 1
-            } else {
-                break
-            }
+        // Phase 2: Build ships based on fleet composition needs.
+        // Cap total AI fleet count so the AI doesn't hoard dozens of
+        // one-ship scouts that never commit to combat (this made late-game
+        // campaigns effectively unwinnable for the player).
+        let aiFleetCap = 4
+        while actionsLeft > 0 {
+            let fleetCount = state.fleets.values.filter { $0.faction == aiFaction }.count
+            guard fleetCount < aiFleetCap else { break }
+            guard let resources = state.resources[aiFaction], resources > 0,
+                  let shipIndex = selectShipToBuild(aiFaction, situation: situation),
+                  self.execute(.buildShip(shipIndex: shipIndex)) == nil else { break }
+            actionsLeft -= 1
         }
 
         // Phase 3: Economy
@@ -968,6 +1056,21 @@ extension CampaignSimulation {
                 return s + ShipRoster.all[entry.shipIndex].maxCrew
             }
         }
+    }
+
+    /// Public fleet value (maxCrew) — used by the AI to weigh whether a
+    /// combat is worth fighting before committing a move into an enemy system.
+    public func fleetValue(_ fleet: FleetUnit) -> Int {
+        fleet.ships.reduce(0) { s, entry in
+            guard entry.shipIndex >= 0 && entry.shipIndex < ShipRoster.all.count else { return s }
+            return s + ShipRoster.all[entry.shipIndex].maxCrew
+        }
+    }
+
+    /// Value of every fleet a faction currently fields.
+    public func totalFleetValue(_ faction: Faction) -> Int {
+        state.fleets.values.filter { $0.faction == faction }
+            .reduce(0) { $0 + fleetValue($1) }
     }
 
     private func countByRole(_ fleets: [FleetUnit], minCost: Int? = nil, maxCost: Int? = nil) -> Int {
@@ -1073,8 +1176,7 @@ extension CampaignSimulation {
     // MARK: - Feint Tactics
 
     private func executeFeint(_ fleetID: EntityID, _ enemyFaction: Faction) -> Bool {
-        guard var fleet = state.fleets[fleetID],
-              fleet.ships.count > aiScoutFleetSize else { return false }
+        guard var fleet = state.fleets[fleetID] else { return false }
 
         let connected = connectedSystems(to: fleet.systemID)
         guard !connected.isEmpty else { return false }
@@ -1086,13 +1188,24 @@ extension CampaignSimulation {
 
         guard let decoyID = decoyTargets.first else { return false }
 
-        let cheapestIdx = fleet.ships.indices.min {
+        // Only split off *redundant* ships — never drop below 2 ships, and
+        // prefer peeling off a cheap scout so the decoy doesn't bleed real
+        // combat value from the main fleet.
+        guard fleet.ships.count > 2 else { return false }
+
+        let redundant = fleet.ships.indices.filter { idx in
+            let cost = ShipRoster.all.indices.contains(fleet.ships[idx].shipIndex)
+                ? ShipRoster.all[fleet.ships[idx].shipIndex].cost : 999
+            return idx != 0 && cost <= 10
+        }
+        let pickFrom = redundant.isEmpty ? Array(fleet.ships.indices.dropFirst()) : redundant
+        guard let idx = pickFrom.min(by: {
             ShipRoster.all[fleet.ships[$0].shipIndex].cost <
             ShipRoster.all[fleet.ships[$1].shipIndex].cost
-        }
+        }) else { return false }
 
-        guard let idx = cheapestIdx else { return false }
         let decoyShip = fleet.ships.remove(at: idx)
+        fleet.ships.sort { ShipRoster.all[$0.shipIndex].cost > ShipRoster.all[$1.shipIndex].cost }
 
         if fleet.ships.isEmpty {
             state.fleets.removeValue(forKey: fleetID)

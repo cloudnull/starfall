@@ -2,17 +2,38 @@ import AppKit
 import SpriteKit
 import StarfallCore
 import StarfallData
+import StarfallAI
+
+extension AIDifficulty {
+    var displayName: String {
+        switch self {
+        case .easy: return "Easy"
+        case .medium: return "Medium"
+        case .hard: return "Hard"
+        }
+    }
+    var nextLevel: AIDifficulty {
+        switch self {
+        case .easy: return .medium
+        case .medium: return .hard
+        case .hard: return .easy
+        }
+    }
+}
 
 /// Main menu scene with buttons for Melee and Campaign modes.
 @MainActor
 public final class MainMenuScene: SKScene {
     
     public var onSelectMelee: (() -> Void)?
-    public var onSelectCampaign: (() -> Void)?
-    public var onNewCampaign: (() -> Void)?
+    public var onSelectCampaign: ((AIDifficulty) -> Void)?
+    public var onNewCampaign: ((AIDifficulty) -> Void)?
     public var onSettings: (() -> Void)?
     public var onTutorial: (() -> Void)?
     public var onUIAction: (() -> Void)?
+    
+    /// Difficulty chosen for a new campaign. Defaults to medium.
+    public var campaignDifficulty: AIDifficulty = .medium
     
     /// Set to true when a saved campaign exists (affects button label).
     public var hasSavedCampaign: Bool = false {
@@ -33,6 +54,7 @@ public final class MainMenuScene: SKScene {
     
     private let buttonLayer = SKNode()
     private let bgLayer = SKNode()
+    private var difficultyLabel: SKLabelNode?
 
     public override init(size: CGSize) {
         super.init(size: size)
@@ -152,6 +174,16 @@ public final class MainMenuScene: SKScene {
         )
         campaignBtn.position = CGPoint(x: centerX, y: size.height * 0.37)
         buttonLayer.addChild(campaignBtn)
+
+        // Difficulty selector — cycles easy → medium → hard when clicked.
+        let diffLabel = SKLabelNode(fontNamed: ".AppleSystemUIFont")
+        diffLabel.fontSize = 12
+        diffLabel.fontColor = NSColor.gray.withAlphaComponent(0.9)
+        diffLabel.text = "AI Difficulty: \(campaignDifficulty.displayName)"
+        diffLabel.name = "difficulty"
+        diffLabel.position = CGPoint(x: centerX, y: size.height * 0.37 - 34)
+        buttonLayer.addChild(diffLabel)
+        difficultyLabel = diffLabel
 
         // New Campaign button — only meaningful when a save exists.
         let newCampaignBtn = createMenuButton(
@@ -379,9 +411,20 @@ public final class MainMenuScene: SKScene {
         }
         
         if let btn = newCampaignBtn, SKScene.pointInSprite(scenePt, sprite: btn) {
-            onNewCampaign?()
+            onNewCampaign?(campaignDifficulty)
             onUIAction?()
             return
+        }
+        
+        // Difficulty selector (below the campaign button).
+        if let diffBtn = buttonLayer.childNode(withName: "difficulty") as? SKLabelNode {
+            let rect = CGRect(x: diffBtn.position.x - 120, y: diffBtn.position.y - 12, width: 240, height: 24)
+            if rect.contains(scenePt) {
+                campaignDifficulty = campaignDifficulty.nextLevel
+                diffBtn.text = "AI Difficulty: \(campaignDifficulty.displayName)"
+                onUIAction?()
+                return
+            }
         }
         
         if let btn = meleeBtn, SKScene.pointInSprite(scenePt, sprite: btn) {
@@ -391,7 +434,7 @@ public final class MainMenuScene: SKScene {
         }
         
         if let btn = campBtn, SKScene.pointInSprite(scenePt, sprite: btn) {
-            onSelectCampaign?()
+            onSelectCampaign?(campaignDifficulty)
             onUIAction?()
             return
         }

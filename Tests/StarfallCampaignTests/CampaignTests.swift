@@ -419,4 +419,99 @@ final class CampaignAITests: XCTestCase {
         XCTAssertFalse(sim.state.isOver)
         XCTAssertEqual(sim.state.currentFaction, .compact)
     }
+    
+    // MARK: - Fleet Rebuild (anti-softlock)
+    
+    func testRebuildFleetWhenStarbaseHeld() {
+        let sim = CampaignSimulation(seed: 42)
+        // Remove all Compact fleets — the player has been fully wiped out.
+        for id in sim.state.fleets.keys where sim.state.fleets[id]?.faction == .compact {
+            sim.state.fleets.removeValue(forKey: id)
+        }
+        sim.state.currentFaction = .compact
+        sim.state.actionsRemaining = 3
+        
+        XCTAssertTrue(sim.hasStarbase(.compact), "Compact starbase should still exist")
+        let result = sim.execute(.rebuildFleet)
+        XCTAssertNil(result)
+        
+        let rebuilt = sim.state.fleets.values.filter { $0.faction == .compact }
+        XCTAssertEqual(rebuilt.count, 1, "Rebuild should create exactly one fleet")
+        XCTAssertEqual(rebuilt.first?.ships.count, 2, "Rebuilt fleet should have the starting 2 ships")
+    }
+    
+    func testRebuildFleetFailsWithoutStarbase() {
+        let sim = CampaignSimulation(seed: 42)
+        // Destroy the Compact starbase and its fleets.
+        for (id, sys) in sim.state.systems where sys.owner == .compact && sys.hasStarbase {
+            var updated = sys
+            updated.hasStarbase = false
+            sim.state.systems[id] = updated
+        }
+        for id in sim.state.fleets.keys where sim.state.fleets[id]?.faction == .compact {
+            sim.state.fleets.removeValue(forKey: id)
+        }
+        sim.state.currentFaction = .compact
+        sim.state.actionsRemaining = 3
+        
+        let result = sim.execute(.rebuildFleet)
+        XCTAssertNotNil(result, "Rebuild should fail without a starbase")
+    }
+    
+    func testVictoryStillTriggersWhenOnlyStarbaseFleetsRemain() {
+        let sim = CampaignSimulation(seed: 42)
+        // Wipe out the Dominion entirely except a lone scout at their home —
+        // simulates the old "48 fleets parked at Psi Prime" state but minimal.
+        for id in sim.state.fleets.keys where sim.state.fleets[id]?.faction == .dominion {
+            sim.state.fleets.removeValue(forKey: id)
+        }
+        let dominionHome = sim.state.systems.values.first { $0.owner == .dominion && $0.hasStarbase }!.id
+        sim.state.fleets[.init(9001)] = FleetUnit(
+            id: .init(9001), systemID: dominionHome, faction: .dominion,
+            ships: [FleetShipEntry(shipIndex: 13, crew: 1)]
+        )
+        
+        // Destroy the Dominion starbase — the lone scout remains but can't
+        // be rebuilt, so the game is over.
+        for (id, sys) in sim.state.systems where sys.owner == .dominion && sys.hasStarbase {
+            var updated = sys
+            updated.hasStarbase = false
+            sim.state.systems[id] = updated
+        }
+        
+        sim.checkVictory()
+        // The lone scout fleet still exists, so by the victory rule the game
+        // is NOT over — the player must destroy it.
+        XCTAssertFalse(sim.state.isOver, "A surviving (even lone) enemy fleet keeps the game running")
+        
+        // Now destroy that scout too — the game must end.
+        sim.state.fleets.removeValue(forKey: .init(9001))
+        sim.checkVictory()
+        XCTAssertTrue(sim.state.isOver)
+        XCTAssertEqual(sim.state.winner, .compact)
+    }
+    
+    // MARK: - AI Fleet Cap (anti-horde)
+    
+    func testAICapPreventsFleetHoarding() {
+        let sim = CampaignSimulation(seed: 42)
+        // Give the Dominion lots of resources and several turns of budget.
+        sim.state.resources[.dominion] = 1000
+        sim.state.currentFaction = .dominion
+        sim.state.actionsRemaining = 3
+        
+        // Run several AI turns in a row — the cap should prevent fleet growth
+        // past 4 even with abundant resources.
+        for _ in 0..<6 {
+            sim.state.resources[.dominion] = 1000
+            sim.state.actionsRemaining = 3
+            _ = sim.runAITurn()
+            _ = sim.endTurn()
+            _ = sim.endTurn()
+        }
+        
+        let dominionFleetCount = sim.state.fleets.values.filter { $0.faction == .dominion }.count
+        XCTAssertLessThanOrEqual(dominionFleetCount, 4,
+            "AI fleet cap should prevent the Dominion from hoarding more than 4 fleets, got \(dominionFleetCount)")
+    }
 }

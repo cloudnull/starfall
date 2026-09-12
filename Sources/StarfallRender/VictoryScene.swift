@@ -114,6 +114,9 @@ public final class VictoryScene: SKScene {
         bgGradient.strokeColor = .clear
         bgGradient.position = CGPoint(x: size.width / 2, y: size.height / 2)
         bgLayer.addChild(bgGradient)
+        // Slow push-in for a cinematic dolly feel.
+        let zoomIn = SKAction.scale(to: 1.06, duration: 30)
+        bgGradient.run(.repeatForever(zoomIn))
         
         // Subtle radial glow at center
         let glow = SKSpriteNode(
@@ -213,7 +216,44 @@ public final class VictoryScene: SKScene {
         let fadeIn = SKAction.fadeAlpha(to: 0, duration: 1.5)
         fadeOverlay.run(fadeIn)
         
+        // Warm ambient rising particles for a cinematic feel.
+        startAmbientParticles()
+        
         updatePage()
+    }
+    
+    /// Draw a small radial-gradient sprite for use as a particle texture.
+    private static func radialParticleTexture(color: NSColor, size: CGFloat = 12) -> NSImage {
+        let image = NSImage(size: NSSize(width: size, height: size))
+        image.lockFocus()
+        let gradient = NSGradient(starting: color.withAlphaComponent(0.9), ending: color.withAlphaComponent(0))!
+        let rect = NSRect(x: 0, y: 0, width: size, height: size)
+        gradient.draw(in: rect, relativeCenterPosition: .zero)
+        image.unlockFocus()
+        return image
+    }
+    
+    private func startAmbientParticles() {
+        let emitter = SKEmitterNode()
+        emitter.particleTexture = SKTexture(image: Self.radialParticleTexture(color: NSColor.systemYellow))
+        emitter.particleColor = NSColor.systemYellow.withAlphaComponent(0.5)
+        emitter.particleColorBlendFactor = 1
+        emitter.particleBirthRate = 12
+        emitter.particleLifetime = 4
+        emitter.particleLifetimeRange = 2
+        emitter.emissionAngle = .pi / 2
+        emitter.particleSpeed = 20
+        emitter.particleSpeedRange = 15
+        emitter.particleAlpha = 0
+        emitter.particleAlphaSpeed = 0.15
+        emitter.particleScale = 0.5
+        emitter.particleScaleRange = 0.3
+        emitter.particleScaleSpeed = 0.1
+        emitter.particlePositionRange = CGVector(dx: size.width, dy: 0)
+        emitter.position = CGPoint(x: size.width / 2, y: 0)
+        emitter.targetNode = bgLayer
+        bgLayer.addChild(emitter)
+        emitter.zPosition = 1
     }
     
     private func updatePage() {

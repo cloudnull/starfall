@@ -28,7 +28,6 @@ final class GameController: NSObject {
         case meleePlaying
         case meleeMatchOver
         case campaign
-        case campaignOver
         case briefing
         case cinematicVictory
         case cinematicDefeat
@@ -248,8 +247,8 @@ final class GameController: NSObject {
         menu.onSelectMelee = { [self] in
             self.showMeleeSelect()
         }
-        menu.onSelectCampaign = { [self] in
-            self.showCampaign()
+        menu.onSelectCampaign = { [self] difficulty in
+            showCampaign(aiDifficulty: difficulty)
         }
         menu.onSettings = { [self] in
             self.showSettings()
@@ -257,8 +256,8 @@ final class GameController: NSObject {
         menu.onTutorial = { [self] in
             self.showTutorial()
         }
-        menu.onNewCampaign = { [self] in
-            self.startNewCampaign()
+        menu.onNewCampaign = { [self] difficulty in
+            startNewCampaign(aiDifficulty: difficulty)
         }
         menu.hasSavedCampaign = (loadCampaignSave() != nil)
         menu.onUIAction = { [self] in
@@ -353,11 +352,11 @@ final class GameController: NSObject {
         presentSceneWithFade(tutorial)
     }
     
-    private func startNewCampaign() {
+    private func startNewCampaign(aiDifficulty: AIDifficulty = .medium) {
         // Delete any existing save.
         try? FileManager.default.removeItem(at: campaignSaveFileURL)
         campaignSim = nil
-        showCampaign()
+        showCampaign(aiDifficulty: aiDifficulty)
     }
     
     // MARK: - Melee Select
@@ -568,7 +567,7 @@ final class GameController: NSObject {
 
     // MARK: - Campaign
     
-    private func showCampaign() {
+    private func showCampaign(aiDifficulty: AIDifficulty = .medium) {
         currentScreen = .campaign
         inputProcessor.clear()
         
@@ -578,6 +577,7 @@ final class GameController: NSObject {
             campaignSim!.state = savedState
         } else {
             campaignSim = CampaignSimulation(seed: UInt64.random(in: 0...UInt64.max))
+            campaignSim!.state.aiDifficulty = aiDifficulty
         }
         
         showCampaignScene()
@@ -724,13 +724,9 @@ final class GameController: NSObject {
         
         // Check for game over.
         if sim.state.isOver {
-            saveCampaignToDisk()
-            currentScreen = .campaignOver
+            clearCompletedCampaignSave()
             audio.playMusic(sim.state.winner == .compact ? .victory : .defeat)
-            
-            simulation = nil
-            renderer = nil
-            aiPilot = nil
+            audio.play(sim.state.winner == .compact ? .victory : .defeat)
             showCinematicEpilogue(winner: sim.state.winner)
             return
         }
@@ -819,14 +815,17 @@ final class GameController: NSObject {
         // Store fleet info for resolving combat.
         pendingCombatFleets = (pending.attackerFleetID, pending.defenderFleetID)
         
-        // Determine AI difficulty based on campaign progress.
-        let campaignDifficulty: AIDifficulty
+        // Determine AI difficulty: use the campaign's chosen difficulty, with
+        // a mild turn-based ramp so late-game encounters get a bit sharper.
+        // (The old code ignored the player's choice and ramped easy→hard.)
         let turn = sim.state.currentTurn
-        if turn <= 4 {
-            campaignDifficulty = .easy
-        } else if turn <= 10 {
-            campaignDifficulty = .medium
-        } else {
+        let campaignDifficulty: AIDifficulty
+        switch sim.state.aiDifficulty {
+        case .easy:
+            campaignDifficulty = turn > 15 ? .medium : .easy
+        case .medium:
+            campaignDifficulty = turn > 15 ? .hard : .medium
+        case .hard:
             campaignDifficulty = .hard
         }
         
@@ -1092,13 +1091,9 @@ final class GameController: NSObject {
         
         // Check game over after combat.
         if sim.state.isOver {
-            saveCampaignToDisk()
-            currentScreen = .campaignOver
+            clearCompletedCampaignSave()
             audio.playMusic(sim.state.winner == .compact ? .victory : .defeat)
-            
-            simulation = nil
-            renderer = nil
-            aiPilot = nil
+            audio.play(sim.state.winner == .compact ? .victory : .defeat)
             showCinematicEpilogue(winner: sim.state.winner)
             return
         }
@@ -1162,6 +1157,13 @@ final class GameController: NSObject {
     }
     
     // MARK: - Cinematic Epilogue
+    
+    /// A finished campaign should not persist as a resumable save. Clear the
+    /// save file so the main menu offers a fresh campaign, not the epilogue.
+    private func clearCompletedCampaignSave() {
+        try? FileManager.default.removeItem(at: campaignSaveFileURL)
+        campaignSim = nil
+    }
     
     private func showCinematicEpilogue(winner: Faction?) {
         if winner == .compact {
@@ -1250,18 +1252,9 @@ final class GameController: NSObject {
     private func campaignTick() {
         // Allow the campaign scene to run per-frame animations.
         // The campaign simulation itself is turn-based and doesn't step here.
+        // (Escape is handled directly in CampaignScene.keyDown so it works on
+        // the first press instead of getting swallowed by the one-shot tick.)
         campaignScene?.update()
-
-        // Handle ESC: if a fleet/system is selected, ESC deselects first
-        // (the spec calls for right-click or Escape to cancel). Only when
-        // nothing is selected does ESC open the pause overlay.
-        if inputProcessor.isEscapePressed {
-            if campaignScene?.hasSelection() == true {
-                campaignScene?.deselect()
-            } else {
-                campaignScene?.togglePauseOverlay()
-            }
-        }
     }
     
     private func meleeTick() {

@@ -124,6 +124,10 @@ public enum CampaignAction: Sendable {
     /// Merge two fleets at the same system into one.
     case mergeFleets(fleetID1: EntityID, fleetID2: EntityID)
     
+    /// Rebuild a starting fleet at the home starbase (used when the faction
+    /// has lost every ship but still holds its starbase).
+    case rebuildFleet
+    
     /// Pass remaining actions.
     case pass
 }
@@ -195,6 +199,11 @@ public struct CampaignState: Sendable, Codable {
 
     /// Pending story event to display before returning to the campaign map.
     public var pendingStoryEvent: String?
+
+    /// AI difficulty chosen at campaign start. Persisted so a resumed
+    /// campaign keeps using the player's choice instead of the hard-coded
+    /// turn-based ramp. Defaults to medium (legacy saves have no value).
+    public var aiDifficulty: AIDifficulty = .medium
 
     /// Systems the player's faction (Compact) has ever seen.
     /// A system is revealed when a fleet enters it or an adjacent system.

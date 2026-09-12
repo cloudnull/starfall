@@ -28,8 +28,15 @@ public final class CampaignScene: SKScene {
     public var onSaveAndQuit: (() -> Void)?
 
     public var onKeyEvent: ((UInt16, Bool) -> Void)? = nil
-
+    
     public override func keyDown(with event: NSEvent) {
+        // Escape must work immediately (and not re-fire while held). Handle it
+        // here on the edge rather than in the game-loop tick, which made the
+        // first press get swallowed and only worked on a second press.
+        if event.keyCode == 53, !event.isARepeat {
+            handleEscape()
+            return
+        }
         onKeyEvent?(event.keyCode, true)
     }
 
@@ -255,7 +262,6 @@ public final class CampaignScene: SKScene {
 
     private func setupHUD() {
         let panelHeight: CGFloat = 48
-
         // Background panel — SKShapeNode(rect:) centers at node position, so
         // we create a rect centered at origin and position the node where we want it.
         let panel = SKShapeNode(rectOf: CGSize(width: size.width, height: panelHeight))
@@ -273,56 +279,56 @@ public final class CampaignScene: SKScene {
 
         let labelY: CGFloat = panelHeight / 2
 
-        // Turn label
+        // Left cluster — measure each label and flow them left-to-right with
+        // fixed spacing instead of hard-coded x positions, so the longer
+        // "Dominion Campaign" faction name never runs into the neighbours.
         turnLabel.fontName = "Helvetica Neue"
         turnLabel.fontSize = 13
         turnLabel.fontColor = NSColor.white.withAlphaComponent(0.85)
-        turnLabel.position = CGPoint(x: 20, y: labelY)
         turnLabel.horizontalAlignmentMode = .left
         hudLayer.addChild(turnLabel)
 
-        // Faction label
         factionLabel.fontName = "Helvetica Neue"
         factionLabel.fontSize = 13
         factionLabel.fontColor = NSColor.systemBlue
-        factionLabel.position = CGPoint(x: 100, y: labelY)
         factionLabel.horizontalAlignmentMode = .left
         hudLayer.addChild(factionLabel)
 
-        // Resource label
         resourcesLabel.fontName = ".AppleSystemUIFont"
         resourcesLabel.fontSize = 12
         resourcesLabel.fontColor = NSColor.systemYellow
-        resourcesLabel.position = CGPoint(x: 230, y: labelY)
         resourcesLabel.horizontalAlignmentMode = .left
         hudLayer.addChild(resourcesLabel)
 
-        // Seed label (top-right corner)
+        actionsLabel.fontName = ".AppleSystemUIFont"
+        actionsLabel.fontSize = 12
+        actionsLabel.fontColor = NSColor.systemGreen
+        actionsLabel.horizontalAlignmentMode = .left
+        hudLayer.addChild(actionsLabel)
+
+        // End Turn button geometry (see setupActionPanel) — the right-side
+        // reserve starts just left of it.
+        let btnW: CGFloat = 110
+        hudRightReserve = size.width - 12 - btnW - 8
+
+        // Seed label (right side, left of the End Turn button)
         seedLabel.fontName = ".AppleSystemUIFont"
         seedLabel.fontSize = 10
         seedLabel.fontColor = NSColor.gray.withAlphaComponent(0.6)
         seedLabel.horizontalAlignmentMode = .right
-        seedLabel.position = CGPoint(x: size.width - 12, y: labelY)
         hudLayer.addChild(seedLabel)
 
-        // Actions label
-        actionsLabel.fontName = ".AppleSystemUIFont"
-        actionsLabel.fontSize = 12
-        actionsLabel.fontColor = NSColor.systemGreen
-        actionsLabel.position = CGPoint(x: 330, y: labelY)
-        actionsLabel.horizontalAlignmentMode = .left
-        hudLayer.addChild(actionsLabel)
-
-        // Status label — centered, but clamped so long text never runs into
-        // the left resource cluster or the End Turn button on the right.
+        // Status label — flows after the left cluster, clamped so long text
+        // never runs into the End Turn button zone.
         statusLabel.fontName = ".AppleSystemUIFont"
         statusLabel.fontSize = 12
         statusLabel.fontColor = NSColor.gray.withAlphaComponent(0.7)
         statusLabel.text = "Click a fleet or system to begin"
-        statusLabel.position = CGPoint(x: (size.width - 160) / 2 + 60, y: labelY)
         statusLabel.horizontalAlignmentMode = .left
-        statusLabel.preferredMaxLayoutWidth = size.width - 520
+        statusLabel.numberOfLines = 1
         hudLayer.addChild(statusLabel)
+
+        layoutHUDLeftCluster(labelY: labelY)
 
         // Tooltip — appears near cursor
         tooltipLabel.fontName = ".AppleSystemUIFont"
@@ -381,6 +387,47 @@ public final class CampaignScene: SKScene {
         endTurnButton.addChild(endTurnLabel)
     }
 
+    private func layoutHUDLeftCluster(labelY: CGFloat) {
+        // hudLayer has no transform in this fixed-size scene, so a label's
+        // frame width is its text width.
+        func width(_ label: SKLabelNode) -> CGFloat { label.frame.width }
+        let spacing: CGFloat = 20
+        var x: CGFloat = 20
+
+        turnLabel.position = CGPoint(x: x, y: labelY)
+        x += width(turnLabel) + spacing
+
+        factionLabel.position = CGPoint(x: x, y: labelY)
+        x += width(factionLabel) + spacing
+
+        resourcesLabel.position = CGPoint(x: x, y: labelY)
+        x += width(resourcesLabel) + spacing
+
+        actionsLabel.position = CGPoint(x: x, y: labelY)
+        let leftClusterEnd = x + width(actionsLabel)
+
+        // Seed label hugs the left side of the End Turn button.
+        seedLabel.position = CGPoint(x: hudRightReserve - 12, y: labelY)
+
+        // Status label flows after the cluster. Its available band is between
+        // the cluster end and the seed label.
+        let statusStart = leftClusterEnd + 12
+        let statusEnd = hudRightReserve - 150
+        let band = statusEnd - statusStart
+
+        let statusWidth = width(statusLabel)
+        if band > 0, statusWidth > band {
+            // Doesn't fit in the middle band — anchor it right, after the seed.
+            statusLabel.preferredMaxLayoutWidth = 150
+            statusLabel.horizontalAlignmentMode = .right
+            statusLabel.position = CGPoint(x: statusEnd, y: labelY)
+        } else {
+            statusLabel.preferredMaxLayoutWidth = max(0, band)
+            statusLabel.horizontalAlignmentMode = .left
+            statusLabel.position = CGPoint(x: statusStart, y: labelY)
+        }
+    }
+
     // MARK: - Actions Menu
 
     private func updateActionsMenu() {
@@ -398,36 +445,52 @@ public final class CampaignScene: SKScene {
         let hasOwnFleet = sim.state.fleets.values.contains {
             $0.systemID == systemID && $0.faction == sim.state.currentFaction
         }
-        guard hasOwnFleet else {
+        // Fleet-gated actions only make sense with a fleet present, but the
+        // starbase can always offer Build / Rebuild — a faction that has lost
+        // every ship must still be able to rebuild at home.
+        let isOwnStarbase = system.owner == sim.state.currentFaction && system.hasStarbase
+        guard hasOwnFleet || isOwnStarbase else {
             actionsMenu.isHidden = true
             return
         }
 
         var availableActions: [(CampaignAction, String)] = []
 
-        switch system.type {
-        case .life:
-            if !system.hasColony {
-                availableActions.append((.colonize(systemID: systemID), "Colonize"))
+        // System development (mine/colony/fortify) requires a fleet present to
+        // supervise the build.
+        if hasOwnFleet {
+            switch system.type {
+            case .life:
+                if !system.hasColony {
+                    availableActions.append((.colonize(systemID: systemID), "Colonize"))
+                }
+            case .mineral:
+                if !system.hasMine {
+                    availableActions.append((.mine(systemID: systemID), "Build Mine"))
+                }
+            case .dead:
+                if !system.isFortified {
+                    availableActions.append((.fortify(systemID: systemID), "Fortify"))
+                }
             }
-        case .mineral:
-            if !system.hasMine {
-                availableActions.append((.mine(systemID: systemID), "Build Mine"))
-            }
-        case .dead:
-            if !system.isFortified {
-                availableActions.append((.fortify(systemID: systemID), "Fortify"))
+
+            if system.hasColony && system.owner == sim.state.currentFaction {
+                availableActions.append((.recruitCrew(systemID: systemID), "Recruit Crew"))
             }
         }
 
-        if system.hasColony && system.owner == sim.state.currentFaction {
-            availableActions.append((.recruitCrew(systemID: systemID), "Recruit Crew"))
-        }
-
-        if sim.state.actionsRemaining > 0, system.owner == sim.state.currentFaction, system.hasStarbase {
+        if sim.state.actionsRemaining > 0, isOwnStarbase {
             // A sentinel buildShip action that the click handler intercepts to
             // open the ship-picker submenu (see mouseDown below).
             availableActions.append((.buildShip(shipIndex: -1), "Build Ship..."))
+            // If this faction has lost every ship, offer a full rebuild so the
+            // game can't soft-lock with a starbase but no way to field a fleet.
+            let factionHasFleet = sim.state.fleets.values.contains {
+                $0.faction == sim.state.currentFaction && !$0.isEmpty
+            }
+            if !factionHasFleet {
+                availableActions.append((.rebuildFleet, "Rebuild Fleet"))
+            }
             isBuildShipMenuOpen = false
         }
 
@@ -606,6 +669,24 @@ public final class CampaignScene: SKScene {
     /// Whether the player currently has a fleet or system selected.
     public func hasSelection() -> Bool {
         return selectedFleetID != nil || selectedSystemID != nil
+    }
+
+    /// Escape: cancel selection (or close an open submenu) first; only open the
+    /// pause overlay when nothing is selected. Toggles the pause overlay if it's
+    /// already showing.
+    public func handleEscape() {
+        if isBuildShipMenuOpen {
+            buildShipButtons.removeAll()
+            buildShipIndices.removeAll()
+            isBuildShipMenuOpen = false
+            render()
+            return
+        }
+        if hasSelection() {
+            deselect()
+            return
+        }
+        togglePauseOverlay()
     }
 
     /// Clear all selections and hide the actions menu (ESC / right-click cancel).
@@ -898,7 +979,18 @@ public final class CampaignScene: SKScene {
 
         // Fleets — triangular ship markers with count badges
         for fleet in state.fleets.values {
-            let sysPos = state.systems[fleet.systemID]?.position
+            // An in-transit fleet is physically moving toward its destination;
+            // show it at the destination system rather than frozen at its
+            // origin (the old behavior made fleets look like they "vanished"
+            // and reappeared at End Turn).
+            let renderSystemID: EntityID
+            if let destID = fleet.destinationSystemID,
+               state.systems[destID] != nil {
+                renderSystemID = destID
+            } else {
+                renderSystemID = fleet.systemID
+            }
+            let sysPos = state.systems[renderSystemID]?.position
             guard let pos = sysPos else { continue }
 
             let isOwn = fleet.faction == state.currentFaction
@@ -906,7 +998,9 @@ public final class CampaignScene: SKScene {
 
             // Fog of war: only show enemy fleets in currently visible systems.
             // Own fleets are always visible (player controls them directly).
-            if !isOwn && !currentlyVisible.contains(fleet.systemID) {
+            // Check the rendered position (destination while en route) so an
+            // enemy fleet moving into view appears as it arrives.
+            if !isOwn && !currentlyVisible.contains(renderSystemID) {
                 continue
             }
 
@@ -1045,6 +1139,9 @@ public final class CampaignScene: SKScene {
 
     // MARK: - HUD
 
+    // X where the right-side reserve (End Turn button / seed) begins.
+    private var hudRightReserve: CGFloat = 0
+
     private func updateHUD() {
         let state = sim.state
         turnLabel.text = "Turn \(state.currentTurn)"
@@ -1084,11 +1181,17 @@ public final class CampaignScene: SKScene {
             statusLabel.fontName = ".AppleSystemUIFont"
             statusLabel.fontSize = 12
             statusLabel.fontColor = NSColor.gray.withAlphaComponent(0.8)
+            // Surface a rebuild path when the active faction has no fleets.
+            let factionHasFleet = state.fleets.values.contains {
+                $0.faction == state.currentFaction && !$0.isEmpty
+            }
+            if !factionHasFleet, sim.hasStarbase(state.currentFaction) {
+                statusLabel.text = "No fleets. Select your home starbase to rebuild."
+                statusLabel.fontColor = NSColor.systemYellow.withAlphaComponent(0.9)
+            }
         }
-        // Keep the status label from ever overlapping the End Turn button.
-        statusLabel.horizontalAlignmentMode = .left
-        statusLabel.position = CGPoint(x: 60, y: 24)
-        statusLabel.preferredMaxLayoutWidth = size.width - 520
+        // Re-flow the left cluster and status label now that texts are set.
+        layoutHUDLeftCluster(labelY: 24)
 
         // Hover color feedback for End Turn button
         if !sim.state.isOver {
@@ -1458,6 +1561,16 @@ public final class CampaignScene: SKScene {
             return
         }
 
+        // A fleet that is already en route can't be re-tasked from the UI
+        // (executeMoveFleet rejects it) — tell the player instead of showing
+        // routes from its origin, which would be misleading.
+        if fleet.destinationSystemID != nil {
+            let destName = sim.state.systems[fleet.destinationSystemID!]?.name ?? "its destination"
+            setStatus("Fleet is en route to \(destName) — it arrives at End Turn.")
+            render()
+            return
+        }
+
         // Select the fleet for movement
         selectedFleetID = fleetID
         selectedSystemID = nil  // Clear any system selection
@@ -1476,9 +1589,22 @@ public final class CampaignScene: SKScene {
            let fleet = sim.state.fleets[fleetID] {
             let connected = sim.connectedSystems(to: fleet.systemID)
             if connected.contains(systemID) {
+                // Warn before committing to a combat the fleet will likely lose.
+                if let enemyFleet = sim.state.fleets.values.first(where: {
+                    $0.systemID == systemID && $0.faction != fleet.faction
+                }) {
+                    let mine = sim.fleetValue(fleet)
+                    let theirs = sim.fleetValue(enemyFleet)
+                    if theirs > mine {
+                        let name = sim.state.systems[systemID]?.name ?? "there"
+                        setStatus("⚠ Enemy fleet at \(name) looks stronger than yours (\(theirs) vs \(mine)). Moving will trigger combat.")
+                    }
+                }
                 let result = sim.execute(.moveFleet(fleetID: fleetID, targetSystemID: systemID))
                 let sysName = sim.state.systems[systemID]?.name ?? "unknown"
-                setStatus(result ?? "Fleet en route to \(sysName)")
+                if result != nil {
+                    setStatus(result ?? "Fleet en route to \(sysName)")
+                }
                 selectedFleetID = nil
                 _ = sim.updateRevealedSystems()
                 render()
@@ -1528,7 +1654,15 @@ public final class CampaignScene: SKScene {
         }
 
         let result = sim.execute(action)
-        setStatus(result ?? "Action completed.")
+        let message: String
+        if result != nil {
+            message = result!
+        } else if case .rebuildFleet = action {
+            message = "Fleet rebuilt at the home starbase."
+        } else {
+            message = "Action completed."
+        }
+        setStatus(message)
         selectedSystemID = nil
         actionsMenu.isHidden = true
         actionButtons.removeAll()

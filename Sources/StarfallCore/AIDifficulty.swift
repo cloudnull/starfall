@@ -5,7 +5,7 @@
 /// never through stat multipliers.
 
 /// AI difficulty level.
-public enum AIDifficulty: Int, CaseIterable, Sendable {
+public enum AIDifficulty: Int, CaseIterable, Sendable, Codable {
     /// Easy - slow reactions, simple tactics.
     case easy
     
